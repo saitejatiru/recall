@@ -1,7 +1,8 @@
 #!/bin/sh
-# Reject commits containing NVIDIA API key-format strings (40+ chars after nvapi-)
-# Using extended regex to avoid false positives on prose that mentions "nvapi-" prefix
-if git diff --cached -U0 | grep -qE 'nvapi-[A-Za-z0-9_-]{40,}'; then
-  echo "ERROR: NVIDIA API key detected in staged files. Remove before committing."
+# Reject commits containing NVIDIA or Gemini API key-format strings.
+# nvapi-[40+]: NVIDIA NIM keys
+# AIza[35]: Google/Gemini API keys
+if git diff --cached -U0 | grep -qE 'nvapi-[A-Za-z0-9_-]{40,}|AIza[0-9A-Za-z_-]{35}'; then
+  echo "ERROR: API key detected in staged files (NVIDIA nvapi- or Gemini AIza...). Remove before committing."
   exit 1
 fi
