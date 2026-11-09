@@ -1,0 +1,7 @@
+# Wrangler local secrets — NEVER commit
+.dev.vars
+*.dev.vars
+
+# Node install if wrangler is used locally
+node_modules/
+wrangler.lock
