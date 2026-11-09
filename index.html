@@ -14,6 +14,16 @@
 <div class="mobile" id="mobile"></div>
 <div class="layout"><aside class="side" id="side"></aside><main id="app" aria-live="polite"></main></div>
 </div>
+<!-- passcode setup modal — shown when localStorage.passcode is unset -->
+<div id="setupModal" style="display:none;position:fixed;inset:0;background:#0d142199;z-index:99;align-items:center;justify-content:center">
+  <div class="card" style="max-width:360px;width:100%">
+    <h2>First-time setup</h2>
+    <p class="muted">Enter the passcode you will set in the Cloudflare Worker. It is stored locally and never sent anywhere directly.</p>
+    <input type="password" id="passcodeInput" placeholder="Passcode">
+    <button class="btn primary" id="savePasscode">Save &amp; continue</button>
+  </div>
+</div>
+<script src="config.js"></script>
 <script>
 const sections=[['home','▦','Dashboard'],['memory','◈','Memory Gym'],['speak','◉','Speaking Studio'],['think','✳','Thinking Lab'],['interview','▤','Interview Arena'],['focus','◷','Focus & Detox'],['progress','↗','Progress']];
 const days=[
@@ -69,5 +79,39 @@ function stop(){if(timer)clearInterval(timer);timer=null}
 function runTimer(n){stop();let left=n;let target=$('#clock');const draw=()=>target.textContent=String(Math.floor(left/60)).padStart(2,'0')+':'+String(left%60).padStart(2,'0');draw();timer=setInterval(()=>{left--;draw();if(left<=0)stop()},1000)}
 document.addEventListener('click',e=>{let p=e.target.closest('[data-page]');if(p){page=p.dataset.page;stop();render();return}let d=e.target.closest('[data-day]');if(d){data.day=+d.dataset.day;page='home';render();return}let id=e.target.id;if(id==='saveRecall'||id==='saveCase'||id==='saveSpeak'||id==='saveInterview'||id==='saveReflection'||id==='saveDistraction'){let k={saveRecall:'recall',saveCase:'case',saveSpeak:'speak',saveInterview:'interview',saveReflection:'reflection',saveDistraction:'distraction'}[id];data[key(k)]=$('#answer').value;save();$('#status')&&($('#status').textContent='Saved. Revisit this tomorrow.');return}if(id==='start')runTimer(90);if(id==='startInterview')runTimer(120);if(id==='reset'){stop();$('#clock').textContent='01:30'}if(id==='newQ')$('#question').textContent=questions[Math.floor(Math.random()*questions.length)];if(id==='reveal')$('#solution').classList.toggle('hidden');if(id==='saveScreen'){data[key('short')]=$('#short').value;data[key('long')]=$('#long').value;save();alert('Saved')}if(id==='export'){let a=document.createElement('a'),u=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));a.href=u;a.download='recall-backup.json';a.click();URL.revokeObjectURL(u)}});
 document.addEventListener('change',e=>{if(e.target.dataset.task!==undefined){let a=data['tasks-'+today()]||[],i=+e.target.dataset.task;data['tasks-'+today()]=e.target.checked?[...new Set([...a,i])]:a.filter(x=>x!==i);save();render()}if(e.target.dataset.bound!==undefined){let a=data[key('bounds')]||[],i=+e.target.dataset.bound;data[key('bounds')]=e.target.checked?[...new Set([...a,i])]:a.filter(x=>x!==i);save()}});
+// passcode first-run setup
+(function(){
+  var m = document.getElementById('setupModal');
+  if (!localStorage.getItem('passcode')) { m.style.display = 'flex'; }
+  document.getElementById('savePasscode').addEventListener('click', function(){
+    var v = document.getElementById('passcodeInput').value.trim();
+    if (!v) return;
+    localStorage.setItem('passcode', v);
+    m.style.display = 'none';
+  });
+})();
+// ponytail: minimal wrapper; Phase 3 adds task-specific callers
+function workerCall(task, payload) {
+  return fetch(CONFIG.workerUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ passcode: localStorage.getItem('passcode'), task, ...payload })
+  }).then(r => r.json());
+}
 render();
+document.querySelector('.top').insertAdjacentHTML('beforeend','<span id="aiStatus" class="small muted">AI: checking...</span>');
+(async function(){
+  try {
+    var result = await workerCall('ping', {});
+    var el = document.getElementById('aiStatus');
+    if (result && result.ok) {
+      el.textContent = 'AI: Connected';
+      el.style.color = 'var(--green)';
+    } else {
+      el.textContent = 'AI: Offline';
+    }
+  } catch(e) {
+    document.getElementById('aiStatus').textContent = 'AI: Offline';
+  }
+})();
 </script></body></html>
