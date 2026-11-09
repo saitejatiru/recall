@@ -1,0 +1,15 @@
+// Cloudflare Workers Builds config for the AI proxy Worker "recall-proxy".
+// recall-proxy is connected to GitHub with Root directory = "worker", so every push to main redeploys it.
+// Secrets (NIM_KEY_*, GEMINI_KEY_*, PASSCODE) live only in the Cloudflare dashboard and are never touched by deploys.
+{
+  "name": "recall-proxy",
+  "main": "worker.js",
+  "compatibility_date": "2026-11-01",
+  "workers_dev": true,
+  "preview_urls": false,
+  // keep ALLOWED_ORIGIN, MODELS, DAILY_CAP exactly as set in the dashboard
+  "keep_vars": true,
+  // daily request cap storage (namespace "recall-ratelimit"); the ID is an identifier, not a secret
+  "kv_namespaces": [{ "binding": "KV", "id": "39164bc57ef743c5898af8d129ea29ed" }],
+  "observability": { "enabled": true }
+}

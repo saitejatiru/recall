@@ -239,3 +239,23 @@ grep -r "nvapi-" . --include="*.js" --include="*.html" --include="*.json" --incl
 5. **GitHub Pages serves the wrong branch** — ensure Pages is set to `main` branch, not `gh-pages`. Verify at `https://saitejatiru.github.io/recall/index.html`.
 
 6. **Secrets in `wrangler.toml` `[vars]`** — `[vars]` in `wrangler.toml` is committed and public. Never put NIM keys there. Use Cloudflare Dashboard Secrets or `wrangler secret put`. The Worker reads secrets from `env.NIM_KEY_1` etc., which are only populated from encrypted Secrets.
+
+---
+
+## 10. Automatic Worker deploys (no more copy-paste)
+
+`recall-proxy` can redeploy itself on every push to `main`, using `worker/wrangler.jsonc`.
+
+1. Cloudflare → **Workers & Pages** → **recall-proxy** → **Settings** → **Build** → **Git repository** → **Connect**.
+2. Choose **GitHub** → account **saitejatiru** → repository **recall**.
+3. Build settings:
+   - **Branch:** `main`
+   - **Build command:** leave empty
+   - **Deploy command:** `npx wrangler deploy`
+   - **Root directory / Path:** `worker`  ← important (the website builds from the repo root)
+   - **Build watch paths (optional):** include `worker/*`
+4. **Save / Connect.** Then open **Deployments** and confirm a build ran with status **Success**.
+
+What deploys never change: Secrets (`NIM_KEY_*`, `GEMINI_KEY_*`, `PASSCODE`) and, because of `"keep_vars": true`, the dashboard variables `ALLOWED_ORIGIN`, `MODELS`, `DAILY_CAP`. The KV binding (`KV` → `recall-ratelimit`) is declared in `worker/wrangler.jsonc`.
+
+Check it worked: the bake-off page shows **Worker code: … ✓ up to date** a minute or two after each push.
