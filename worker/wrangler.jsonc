@@ -7,7 +7,9 @@
   "compatibility_date": "2026-11-01",
   "workers_dev": true,
   "preview_urls": false,
-  // keep ALLOWED_ORIGIN, MODELS, DAILY_CAP exactly as set in the dashboard
+  // Set by every deploy, so a deploy can never leave the site blocked. MODELS stays a dashboard
+  // variable (keep_vars) so you can reorder models without a commit; if it's missing, DEFAULT_MODELS applies.
+  "vars": { "ALLOWED_ORIGIN": "https://recallnow.pages.dev", "DAILY_CAP": "300" },
   "keep_vars": true,
   // daily request cap storage (namespace "recall-ratelimit"); the ID is an identifier, not a secret
   "kv_namespaces": [{ "binding": "KV", "id": "39164bc57ef743c5898af8d129ea29ed" }],

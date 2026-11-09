@@ -16,7 +16,7 @@ const CORS = (origin) => ({
 
 export default {
   async fetch(request, env) {
-    const allowedOrigin = env.ALLOWED_ORIGIN || 'https://saitejatiru.github.io';
+    const allowedOrigin = env.ALLOWED_ORIGIN || 'https://recallnow.pages.dev';
 
     // CORS preflight
     if (request.method === 'OPTIONS') {
