@@ -45,7 +45,7 @@ table{width:100%;border-collapse:collapse;margin-top:12px}th,td{text-align:left;
       <option value="mistralai/mistral-large-4-1t-a52b">NVIDIA · hangs</option>
     </datalist>
   </label>
-  <p class="small muted">Page version: 2026-11-09 · native Gemini</p>
+  <p class="small muted">Page version: 2026-11-09 · native Gemini · <span id="workerVersion">Worker code: checking…</span></p>
 </div>
 
 <div class="card">
@@ -109,6 +109,25 @@ const esc = s => String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>
   document.getElementById('passcode').value =
     localStorage.getItem('passcode') || '';
 })();
+
+// Which Worker code is Cloudflare running? Old code doesn't report a version → re-paste worker.js.
+const EXPECTED_WORKER = '2026-11-09 · native Gemini';
+async function checkWorkerVersion() {
+  const el = document.getElementById('workerVersion');
+  const passcode = document.getElementById('passcode').value.trim();
+  if (!passcode) { el.textContent = 'Worker code: enter passcode to check'; return; }
+  try {
+    const r = await fetch(document.getElementById('workerUrl').value.trim(), { method: 'POST',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ task: 'ping', passcode }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { el.textContent = 'Worker code: ' + (d.error || 'error ' + r.status); return; }
+    const ok = d.version === EXPECTED_WORKER;
+    el.textContent = 'Worker code: ' + (d.version || 'OLD (no version)') + (ok ? ' ✓ up to date' : ' ✗ re-paste worker.js in Cloudflare');
+    el.style.color = ok ? 'var(--green)' : '#ff8a8a';
+  } catch (e) { el.textContent = 'Worker code: unreachable (' + e.message + ')'; }
+}
+checkWorkerVersion();
+document.getElementById('passcode').addEventListener('change', checkWorkerVersion);
 
 async function runBakeoff() {
   const workerUrl = document.getElementById('workerUrl').value.trim();

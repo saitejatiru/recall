@@ -4,6 +4,9 @@
 // ponytail: in-memory round-robin per provider; resets on cold start, fine for personal tool
 const idx = { nim: 0, gemini: 0 };
 
+// Shown on the bake-off page so you can see which code Cloudflare is actually running. Bump on every change.
+const WORKER_VERSION = '2026-11-09 · native Gemini';
+
 const CORS = (origin) => ({
   'Access-Control-Allow-Origin': origin,
   'Access-Control-Allow-Methods': 'POST',
@@ -64,7 +67,7 @@ export default {
 
     // --- PING ---
     if (task === 'ping') {
-      return json({ ok: true, ts: Date.now() }, 200, CORS(allowedOrigin));
+      return json({ ok: true, ts: Date.now(), version: WORKER_VERSION }, 200, CORS(allowedOrigin));
     }
 
     // --- BAKEOFF ---

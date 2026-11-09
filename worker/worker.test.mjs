@@ -29,7 +29,9 @@ const fakeNim = (table) => { globalThis.fetch = async (url, init) => {
 assert.equal((await call({ task: 'ping' }, { ...base, PASSCODE: undefined })).status, 403);
 assert.equal((await call({ task: 'ping', passcode: 'nope' })).status, 403);
 assert.equal((await call({ task: 'ping', passcode: 'pw' }, base, 'https://evil.example')).status, 403);
-assert.equal((await call({ task: 'ping', passcode: 'pw' })).json.ok, true);
+const pong = (await call({ task: 'ping', passcode: 'pw' })).json;
+assert.equal(pong.ok, true);
+assert.ok(pong.version, 'ping reports the Worker code version');
 
 // 2. rotation: whichever key is tried first returns 401, the other answers
 fakeNim((key) => key === 'k1' ? reply(401) : reply(200));
