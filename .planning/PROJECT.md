@@ -78,8 +78,8 @@ After every practice answer, the learner gets short, specific and personalised f
 | PDF resume parsed in-browser | No server storage of personal data | — Pending |
 | localStorage + JSON backup (no sync) | Avoids accounts/DB | — Pending |
 | Feedback = score + 1 fix + better line, <80 words | User wants short, actionable feedback | — Pending |
-| AI model choice | Worker diagnostics 2026-11-09 (from inside recall-proxy): nemotron-3.5-super-vl OK 0.7s; gemini-3.5-flash-lite OK ~1s; gemini-3.8-flash 503 "high demand" (native) / hangs (OpenAI-compat); nemotron-3-super 404 not on account; glm-5.3-flash and mistral-large-4 hang. Gemini now called via native generateContent (fails fast on overload, JSON mode). `MODELS`: nemotron-3.5-super-vl → gemini-3.5-flash-lite → gemini-3.8-flash. User accepts up to 5 min per answer; 2 min cap per try. gemini-4-argon is paid-only. Gemini limits are per project, not per key | — Pending bake-off on new order |
-| Hosting | Site served by Cloudflare Worker `recall` (static assets, Git-connected) at https://recall.saitejatirunagari.workers.dev instead of GitHub Pages; API proxy is a separate Worker `recall-proxy` | — Pending |
+| AI model choice | Live bake-off 2026-11-09 (real keys, 3 PM answers): gemini-3.5-flash-lite scored 2/8/2 (expected 2-4/7-9/2-4), JSON valid 3/3, avg ~1.7s — WINNER. nemotron-3.5-super-vl scored 3/8/3, ~0.7s. nemotron-3-super 404 (not on account). `DEFAULT_MODELS` = gemini-3.5-flash-lite,nvidia/nemotron-3.5-super-vl-120b-a12b,gemini-3.8-flash. Gemini called via native generateContent (fails fast on overload). User accepts up to 5 min per answer; 120s per-try cap, 295s total. Gemini limits are per Google project, not per key. | ✓ Good |
+| Hosting | Site at https://recallnow.pages.dev (Cloudflare Pages, Git-connected to main, auto-deploys on push). API proxy Worker `recall-proxy` at https://recall-proxy.saitejatirunagari.workers.dev; auto-deploys via Workers Builds (root dir `worker/`, wrangler.jsonc with keep_vars + KV binding). | ✓ Good |
 
 ## Evolution
 
