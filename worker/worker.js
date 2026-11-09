@@ -5,7 +5,7 @@
 const idx = { nim: 0, gemini: 0 };
 
 // Shown on the bake-off page so you can see which code Cloudflare is actually running. Bump on every change.
-const WORKER_VERSION = '2026-11-09 · reviewed';
+const WORKER_VERSION = '2026-11-09 · clear auth errors';
 
 const CORS = (origin) => ({
   'Access-Control-Allow-Origin': origin,
@@ -33,7 +33,7 @@ export default {
     // Origin guard
     const origin = request.headers.get('Origin') || '';
     if (origin !== allowedOrigin) {
-      return json({ error: 'auth_failed' }, 403, CORS(allowedOrigin));
+      return json({ error: 'origin_not_allowed' }, 403, CORS(allowedOrigin));
     }
 
     // Parse body
@@ -41,9 +41,11 @@ export default {
     try { body = await request.json(); }
     catch { return json({ error: 'bad_request' }, 400, CORS(allowedOrigin)); }
 
-    // Passcode guard — fail closed if the PASSCODE secret was never set
-    if (!env.PASSCODE || body.passcode !== env.PASSCODE) {
-      return json({ error: 'auth_failed' }, 403, CORS(allowedOrigin));
+    // Passcode guard — fail closed if the PASSCODE secret was never set. Distinct errors so the
+    // owner can tell "secret missing in Cloudflare" from "typed the wrong passcode"; neither helps an attacker.
+    if (!env.PASSCODE) return json({ error: 'passcode_secret_missing' }, 403, CORS(allowedOrigin));
+    if (body.passcode !== env.PASSCODE) {
+      return json({ error: 'wrong_passcode' }, 403, CORS(allowedOrigin));
     }
 
     // Daily cap (KV counter)

@@ -26,9 +26,9 @@ const fakeNim = (table) => { globalThis.fetch = async (url, init) => {
 }; };
 
 // 1. auth fails closed: missing PASSCODE secret, wrong passcode, wrong origin
-assert.equal((await call({ task: 'ping' }, { ...base, PASSCODE: undefined })).status, 403);
-assert.equal((await call({ task: 'ping', passcode: 'nope' })).status, 403);
-assert.equal((await call({ task: 'ping', passcode: 'pw' }, base, 'https://evil.example')).status, 403);
+assert.deepEqual(await call({ task: 'ping', passcode: 'pw' }, { ...base, PASSCODE: undefined }), { status: 403, json: { error: 'passcode_secret_missing' } });
+assert.deepEqual(await call({ task: 'ping', passcode: 'nope' }), { status: 403, json: { error: 'wrong_passcode' } });
+assert.deepEqual(await call({ task: 'ping', passcode: 'pw' }, base, 'https://evil.example'), { status: 403, json: { error: 'origin_not_allowed' } });
 const pong = (await call({ task: 'ping', passcode: 'pw' })).json;
 assert.equal(pong.ok, true);
 assert.ok(pong.version, 'ping reports the Worker code version');

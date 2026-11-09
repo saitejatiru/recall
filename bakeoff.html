@@ -45,7 +45,7 @@ table{width:100%;border-collapse:collapse;margin-top:12px}th,td{text-align:left;
       <option value="mistralai/mistral-large-4-1t-a52b">NVIDIA · hangs</option>
     </datalist>
   </label>
-  <p class="small muted">Page version: 2026-11-09 · reviewed · <span id="workerVersion">Worker code: checking…</span></p>
+  <p class="small muted">Page version: 2026-11-09 · clear auth errors · <span id="workerVersion">Worker code: checking…</span></p>
 </div>
 
 <div class="card">
@@ -114,7 +114,7 @@ const esc = s => String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>
 const trail = (a) => !a || !a.length ? '' : '<div class="small" style="margin-top:6px;line-height:1.6">' + a.map(x =>
   esc(String(x.model || '?').split('/').pop() + (x.key ? ' #' + x.key : '') + ' → ' + x.status + ' · ' + (x.ms / 1000).toFixed(1) + 's') +
   (x.err ? '<br><span style="opacity:.75">' + esc(String(x.err).slice(0, 120)) + '</span>' : '')).join('<br>') + '</div>';
-const EXPECTED_WORKER = '2026-11-09 · reviewed';
+const EXPECTED_WORKER = '2026-11-09 · clear auth errors';
 async function checkWorkerVersion() {
   const el = document.getElementById('workerVersion');
   const passcode = document.getElementById('passcode').value.trim();
@@ -123,7 +123,12 @@ async function checkWorkerVersion() {
     const r = await fetch(document.getElementById('workerUrl').value.trim(), { method: 'POST',
       headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ task: 'ping', passcode }) });
     const d = await r.json().catch(() => ({}));
-    if (!r.ok) { el.textContent = 'Worker code: ' + (d.error || 'error ' + r.status); return; }
+    if (!r.ok) {
+      const why = { wrong_passcode: 'wrong passcode — retype it in the Passcode box above',
+        passcode_secret_missing: 'PASSCODE secret is missing in Cloudflare — re-add it (and check the NIM/GEMINI key secrets)',
+        origin_not_allowed: 'this site is not the ALLOWED_ORIGIN', auth_failed: 'auth_failed (old Worker code)' }[d.error];
+      el.textContent = 'Worker code: ' + (why || d.error || 'error ' + r.status); el.style.color = '#ff8a8a'; return;
+    }
     const ok = d.version === EXPECTED_WORKER;
     el.textContent = 'Worker code: ' + (d.version || 'OLD (no version)') + (ok ? ' ✓ up to date' : ' ✗ re-paste worker.js in Cloudflare');
     el.style.color = ok ? 'var(--green)' : '#ff8a8a';
