@@ -96,8 +96,13 @@ function workerCall(task, payload) {
   return fetch(CONFIG.workerUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ passcode: localStorage.getItem('passcode'), task, ...payload })
-  }).then(r => r.json());
+    // task + passcode last so a payload can never override them (review WR-04)
+    body: JSON.stringify({ ...payload, task, passcode: localStorage.getItem('passcode') })
+  }).then(async r => {
+    // keep the HTTP status so callers can tell 403 (wrong passcode) from 429 (daily cap) (review WR-03)
+    const data = await r.json().catch(() => ({}));
+    return { ...data, status: r.status, ok: r.ok && data.ok !== false };
+  });
 }
 render();
 document.querySelector('.top').insertAdjacentHTML('beforeend','<span id="aiStatus" class="small muted">AI: checking...</span>');

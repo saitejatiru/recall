@@ -123,6 +123,15 @@ assert.equal(r.json.results[0].valid_json, true, 'prose-wrapped JSON must parse'
 assert.equal(r.json.results[0].feedback.score, 4);
 assert.deepEqual(r.json.results[0].attempts.map(a => [a.model, a.status]), [['m1', 429], ['m1', 429], ['m2', 200]]);
 
+// 3j. crafted model names never reach a provider (path traversal to other Google APIs — review CR-01)
+fakeNim(() => reply(200));
+calls = [];
+for (const bad of ['gemini-3.5-flash-lite/../../v1beta/files', '../x', 'a/b/c', 'gemini-x:generateContent?alt=x']) {
+  r = await call({ task: 'bakeoff', passcode: 'pw', model: bad, answers: ['a'] }, gEnv);
+  assert.equal(r.json.results[0].model, null, 'unsafe model must not answer: ' + bad);
+}
+assert.equal(calls.length, 0, 'no request sent for unsafe model names');
+
 // 4. one request can't fan out past 3 answers
 fakeNim(() => reply(200));
 calls = [];

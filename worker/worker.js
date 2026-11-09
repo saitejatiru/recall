@@ -5,7 +5,7 @@
 const idx = { nim: 0, gemini: 0 };
 
 // Shown on the bake-off page so you can see which code Cloudflare is actually running. Bump on every change.
-const WORKER_VERSION = '2026-11-09 · attempt trail';
+const WORKER_VERSION = '2026-11-09 · reviewed';
 
 const CORS = (origin) => ({
   'Access-Control-Allow-Origin': origin,
@@ -107,12 +107,10 @@ export default {
   },
 };
 
-// Models in priority order: MODELS="a,b,c" (comma-separated), else PRIMARY_MODEL,FALLBACK_MODEL.
-// A model requested by the caller (bake-off) is tried first.
-function modelList(env, requested) {
+// Models in priority order: MODELS="a,b,c" (comma-separated), else PRIMARY_MODEL,FALLBACK_MODEL, else DEFAULT_MODELS.
+function modelList(env) {
   const raw = env.MODELS || [env.PRIMARY_MODEL, env.FALLBACK_MODEL].filter(Boolean).join(',') || DEFAULT_MODELS;
-  const list = raw.split(',').map(s => s.trim()).filter(Boolean);
-  return requested ? [requested, ...list.filter(m => m !== requested)] : list;
+  return raw.split(',').map(s => s.trim()).filter(Boolean);
 }
 
 // Two providers. Model names starting with "gemini-" go to Google's NATIVE generateContent API with
@@ -191,7 +189,12 @@ function geminiBody(messages, opts) {
   };
 }
 
+// Model IDs go into request URLs/bodies: allow only "name" or "vendor/name" made of [A-Za-z0-9._-],
+// never "..", so a crafted model can't path-traverse to other Google APIs with the Worker's key (review CR-01).
+const isSafeModel = (m) => /^[A-Za-z0-9._-]+(\/[A-Za-z0-9._-]+)?$/.test(m) && !m.includes('..');
+
 async function aiRequest(provider, key, model, messages, timeoutMs = CALL_TIMEOUT_MS, opts = {}) {
+  if (!isSafeModel(model)) return { content: null, status: 400, errText: 'invalid model name' };
   const gemini = provider === 'gemini';
   try {
     const resp = await fetch(gemini ? `${ENDPOINT.gemini}/${model}:generateContent` : ENDPOINT.nim, {

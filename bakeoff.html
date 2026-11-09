@@ -45,7 +45,7 @@ table{width:100%;border-collapse:collapse;margin-top:12px}th,td{text-align:left;
       <option value="mistralai/mistral-large-4-1t-a52b">NVIDIA · hangs</option>
     </datalist>
   </label>
-  <p class="small muted">Page version: 2026-11-09 · attempt trail · <span id="workerVersion">Worker code: checking…</span></p>
+  <p class="small muted">Page version: 2026-11-09 · reviewed · <span id="workerVersion">Worker code: checking…</span></p>
 </div>
 
 <div class="card">
@@ -112,9 +112,9 @@ const esc = s => String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>
 
 // Which Worker code is Cloudflare running? Old code doesn't report a version → re-paste worker.js.
 const trail = (a) => !a || !a.length ? '' : '<div class="small" style="margin-top:6px;line-height:1.6">' + a.map(x =>
-  esc(x.model.split('/').pop() + (x.key ? ' #' + x.key : '') + ' → ' + x.status + ' · ' + (x.ms / 1000).toFixed(1) + 's') +
+  esc(String(x.model || '?').split('/').pop() + (x.key ? ' #' + x.key : '') + ' → ' + x.status + ' · ' + (x.ms / 1000).toFixed(1) + 's') +
   (x.err ? '<br><span style="opacity:.75">' + esc(String(x.err).slice(0, 120)) + '</span>' : '')).join('<br>') + '</div>';
-const EXPECTED_WORKER = '2026-11-09 · attempt trail';
+const EXPECTED_WORKER = '2026-11-09 · reviewed';
 async function checkWorkerVersion() {
   const el = document.getElementById('workerVersion');
   const passcode = document.getElementById('passcode').value.trim();
