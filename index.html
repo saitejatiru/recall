@@ -18,7 +18,7 @@
 <div id="setupModal" style="display:none;position:fixed;inset:0;background:#0d142199;z-index:99;align-items:center;justify-content:center">
   <div class="card" style="max-width:360px;width:100%">
     <h2>First-time setup</h2>
-    <p class="muted">Enter the passcode you will set in the Cloudflare Worker. It is stored locally and never sent anywhere directly.</p>
+    <p class="muted">Enter the passcode you will set in the Cloudflare Worker. It is stored only in this browser and sent only to your Worker.</p>
     <input type="password" id="passcodeInput" placeholder="Passcode">
     <button class="btn primary" id="savePasscode">Save &amp; continue</button>
   </div>
@@ -88,6 +88,7 @@ document.addEventListener('change',e=>{if(e.target.dataset.task!==undefined){let
     if (!v) return;
     localStorage.setItem('passcode', v);
     m.style.display = 'none';
+    if (typeof checkAI === 'function') checkAI(); // re-check now that a passcode exists
   });
 })();
 // ponytail: minimal wrapper; Phase 3 adds task-specific callers
@@ -100,7 +101,7 @@ function workerCall(task, payload) {
 }
 render();
 document.querySelector('.top').insertAdjacentHTML('beforeend','<span id="aiStatus" class="small muted">AI: checking...</span>');
-(async function(){
+async function checkAI(){
   try {
     var result = await workerCall('ping', {});
     var el = document.getElementById('aiStatus');
@@ -113,5 +114,6 @@ document.querySelector('.top').insertAdjacentHTML('beforeend','<span id="aiStatu
   } catch(e) {
     document.getElementById('aiStatus').textContent = 'AI: Offline';
   }
-})();
+}
+checkAI();
 </script></body></html>

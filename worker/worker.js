@@ -38,8 +38,8 @@ export default {
     try { body = await request.json(); }
     catch { return json({ error: 'bad_request' }, 400, CORS(allowedOrigin)); }
 
-    // Passcode guard
-    if (body.passcode !== env.PASSCODE) {
+    // Passcode guard — fail closed if the PASSCODE secret was never set
+    if (!env.PASSCODE || body.passcode !== env.PASSCODE) {
       return json({ error: 'auth_failed' }, 403, CORS(allowedOrigin));
     }
 
@@ -70,7 +70,8 @@ export default {
     // --- BAKEOFF ---
     if (task === 'bakeoff') {
       const model = body.model || env.PRIMARY_MODEL || 'nvidia/nemotron-3-super-120b-a12b';
-      const answers = Array.isArray(body.answers) ? body.answers : [];
+      // ponytail: max 3 answers per request so one call can't bypass DAILY_CAP
+      const answers = Array.isArray(body.answers) ? body.answers.slice(0, 3).map(a => String(a).slice(0, 4000)) : [];
       const keys = nimKeys(env);
       const results = [];
 
@@ -147,6 +148,7 @@ async function nimRequest(key, model, messages) {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(25000), // hung request → treated as timeout, next key
     });
 
     if (resp.status === 429 || resp.status === 401 || resp.status === 403 || resp.status >= 500) {
