@@ -78,7 +78,7 @@ After every practice answer, the learner gets short, specific and personalised f
 | PDF resume parsed in-browser | No server storage of personal data | — Pending |
 | localStorage + JSON backup (no sync) | Avoids accounts/DB | — Pending |
 | Feedback = score + 1 fix + better line, <80 words | User wants short, actionable feedback | — Pending |
-| NIM model choice | User-chosen priority list (2026-11-09): mistral-large-4-1t-a52b → glm-5.3-flash → nemotron-3.5-super-vl-120b-a12b, set via Worker `MODELS` var (research pick nemotron-3-super kept in bake-off for comparison) | — Pending bake-off |
+| AI model choice | Bake-off 2026-11-09: mistral-large-4 timed out (>20s, dropped); nemotron-3.5-super-vl scored 3/8/3 correctly. User added Gemini (8 keys) as a second provider; Worker routes `gemini-*` to Google. Proposed `MODELS`: gemini-3.8-flash → nemotron-3.5-super-vl → gemini-3.5-flash-lite → nemotron-3-super. gemini-4-argon is paid-only (not on free tier). Gemini rate limits are per project, not per key | — Pending Gemini bake-off |
 | Hosting | Site served by Cloudflare Worker `recall` (static assets, Git-connected) at https://recall.saitejatirunagari.workers.dev instead of GitHub Pages; API proxy is a separate Worker `recall-proxy` | — Pending |
 
 ## Evolution

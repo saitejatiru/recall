@@ -8,11 +8,12 @@ const req = (body, origin = ORIGIN) => new Request('https://w.dev', { method: 'P
 const call = async (body, env = base, origin) => { const r = await worker.fetch(req(body, origin), env); return { status: r.status, json: await r.json() }; };
 
 // fake NIM: reply per (key, model) via a lookup; records calls
-let calls = [];
+let calls = [], sent = [];
 const reply = (status, content = '{"score":5}') => new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status });
-const fakeNim = (table) => { globalThis.fetch = async (_url, init) => {
-  const key = init.headers.Authorization.slice(7), model = JSON.parse(init.body).model;
+const fakeNim = (table) => { globalThis.fetch = async (url, init) => {
+  const key = init.headers.Authorization.slice(7), body = JSON.parse(init.body), model = body.model;
   calls.push(`${key}:${model}`);
+  sent.push({ url, body });
   return table(key, model);
 }; };
 
@@ -52,6 +53,38 @@ r = await call({ task: 'bakeoff', passcode: 'pw', model: 'picked', answers: ['a'
 assert.equal(r.json.results[0].model, null);
 assert.equal(r.json.results[0].error, 'status_400');
 assert.ok(calls.every(c => c.endsWith(':picked')), 'no other model may be called');
+
+// 3e. gemini-* models go to Google with GEMINI_KEY_*, without NIM-only params; fenced JSON still parses
+const gEnv = { ...base, GEMINI_KEY_1: 'g1', GEMINI_KEY_2: 'g2', MODELS: 'gemini-3.8-flash,nvidia/nemotron-3-super-120b-a12b' };
+fakeNim(() => reply(200, '```json\n{"score":3}\n```'));
+calls = []; sent = [];
+r = await call({ task: 'bakeoff', passcode: 'pw', answers: ['a'] }, gEnv);
+assert.equal(r.json.results[0].model, 'gemini-3.8-flash');
+assert.equal(r.json.results[0].valid_json, true, 'fenced JSON must parse');
+assert.ok(sent[0].url.startsWith('https://generativelanguage.googleapis.com/'));
+assert.ok(/^g[12]:/.test(calls[0]), 'gemini must use GEMINI_KEY_*');
+assert.equal(sent[0].body.reasoning_effort, 'low');
+assert.equal(sent[0].body.chat_template_kwargs, undefined);
+
+// 3f. Google reports a bad key as 400 API_KEY_INVALID → treated as a key problem: next Gemini key, same model
+globalThis.fetch = async (_url, init) => {
+  const key = init.headers.Authorization.slice(7);
+  calls.push(key);
+  return key === 'g1' // g1 is a revoked key, g2 works
+    ? new Response('{"error":{"status":"INVALID_ARGUMENT","details":[{"reason":"API_KEY_INVALID"}]}}', { status: 400 })
+    : reply(200);
+};
+calls = [];
+for (let n = 0; n < 2; n++) { // run twice so rotation starts on g1 at least once
+  r = await call({ task: 'bakeoff', passcode: 'pw', answers: ['a'] }, { ...gEnv, MODELS: 'gemini-3.8-flash' });
+  assert.equal(r.json.results[0].model, 'gemini-3.8-flash', 'bad Gemini key must fail over to the next key');
+}
+assert.ok(calls.includes('g1'), 'the revoked key was actually tried');
+
+// 3g. no Gemini keys configured → skip straight to the next model
+fakeNim(() => reply(200));
+r = await call({ task: 'bakeoff', passcode: 'pw', answers: ['a'] }, { ...base, MODELS: 'gemini-3.8-flash,m2' });
+assert.equal(r.json.results[0].model, 'm2');
 
 // 4. one request can't fan out past 3 answers
 fakeNim(() => reply(200));

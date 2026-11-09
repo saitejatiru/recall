@@ -1,8 +1,8 @@
-// worker/worker.js — Phase 1: auth, rotation, ping, bakeoff
+// worker/worker.js — Phase 1: auth, key rotation (NVIDIA NIM + Gemini), ping, bakeoff
 // Phase 3 adds: case "coach" with system prompt injection
 
-// ponytail: in-memory round-robin; resets on cold start, fine for personal tool
-let idx = 0;
+// ponytail: in-memory round-robin per provider; resets on cold start, fine for personal tool
+const idx = { nim: 0, gemini: 0 };
 
 const CORS = (origin) => ({
   'Access-Control-Allow-Origin': origin,
@@ -73,13 +73,12 @@ export default {
       const models = body.model ? [String(body.model)] : modelList(env);
       // ponytail: max 3 answers per request so one call can't bypass DAILY_CAP
       const answers = Array.isArray(body.answers) ? body.answers.slice(0, 3).map(a => String(a).slice(0, 4000)) : [];
-      const keys = nimKeys(env);
       const results = [];
 
       // answers scored in parallel, so the whole bake-off takes about as long as one answer
       results.push(...await Promise.all(answers.map(async (answer, i) => {
         const t0 = Date.now();
-        const { content, error, model: usedModel } = await callNIM(keys, models, [
+        const { content, error, model: usedModel } = await callAI(env, models, [
           { role: 'system', content: BAKEOFF_SYSTEM },
           { role: 'user', content: answer },
         ]);
@@ -87,7 +86,7 @@ export default {
 
         let feedback = null, valid_json = false;
         if (content) {
-          try { feedback = JSON.parse(stripThink(content)); valid_json = true; }
+          try { feedback = parseJSONReply(content); valid_json = true; }
           catch { feedback = { raw: content }; }
         }
         return { answer_index: i, model: usedModel, latency_ms, feedback, valid_json, error: error || null };
@@ -111,24 +110,39 @@ function modelList(env, requested) {
   return requested ? [requested, ...list.filter(m => m !== requested)] : list;
 }
 
-// Shared NIM call: each model in order, each across all keys, within one overall time budget.
+// Two providers, one OpenAI-compatible request shape. Model names starting with "gemini-"
+// go to Google with GEMINI_KEY_*; everything else goes to NVIDIA NIM with NIM_KEY_*.
+const ENDPOINT = {
+  nim: 'https://integrate.api.nvidia.com/v1/chat/completions',
+  gemini: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+};
+const providerOf = (model) => model.startsWith('gemini-') ? 'gemini' : 'nim';
+function keysFor(env, provider) {
+  const prefix = provider === 'gemini' ? 'GEMINI_KEY_' : 'NIM_KEY_';
+  return Array.from({ length: 10 }, (_, i) => env[prefix + (i + 1)]).filter(Boolean);
+}
+
+// Each model in order, each across its provider's keys, within one overall time budget.
 // Key problem (401/403/429/5xx) → next key. Model problem (timeout, 400, empty reply) → next model:
 // a slow model is slow on every key, so retrying it per key only multiplies the wait.
 const CALL_TIMEOUT_MS = 20000, TOTAL_BUDGET_MS = 55000;
-async function callNIM(keys, models, messages) {
+async function callAI(env, models, messages) {
   const deadline = Date.now() + TOTAL_BUDGET_MS;
   let last = 'no_keys';
   for (const model of models) {
+    const provider = providerOf(model);
+    const keys = keysFor(env, provider);
+    if (!keys.length) { last = `no_${provider}_keys`; continue; }
     for (let attempt = 0; attempt < keys.length; attempt++) {
       const left = deadline - Date.now();
       if (left < 3000) return { content: null, error: 'out_of_time', model: null };
-      const keyNo = (idx % keys.length) + 1;
-      const key = keys[idx % keys.length];
-      idx = (idx + 1) % keys.length;
+      const keyNo = (idx[provider] % keys.length) + 1;
+      const key = keys[idx[provider] % keys.length];
+      idx[provider] = (idx[provider] + 1) % keys.length;
       const t0 = Date.now();
-      const result = await nimRequest(key, model, messages, Math.min(CALL_TIMEOUT_MS, left));
+      const result = await aiRequest(provider, key, model, messages, Math.min(CALL_TIMEOUT_MS, left));
       // log status + timing only — never keys or message bodies
-      console.log(`nim model=${model} key#${keyNo} status=${result.status} ms=${Date.now() - t0}`);
+      console.log(`ai ${provider} model=${model} key#${keyNo} status=${result.status} ms=${Date.now() - t0}`);
       if (result.content) return { content: result.content, model };
       last = result.status === 0 ? 'timeout' : `status_${result.status}`;
       const keyProblem = result.status === 401 || result.status === 403 || result.status === 429 || result.status >= 500;
@@ -138,28 +152,33 @@ async function callNIM(keys, models, messages) {
   return { content: null, error: last, model: null };
 }
 
-async function nimRequest(key, model, messages, timeoutMs = CALL_TIMEOUT_MS) {
-  try {
-    const isThinkingModel = model.includes('super') || model.includes('ultra');
-    const body = {
-      model,
-      messages,
-      max_tokens: 400,
-      temperature: isThinkingModel ? 1.0 : 0.5,
-      top_p: isThinkingModel ? 0.95 : undefined,
-      ...(isThinkingModel ? { chat_template_kwargs: { enable_thinking: false } } : {}),
-    };
-    // Remove undefined keys
-    Object.keys(body).forEach(k => body[k] === undefined && delete body[k]);
+function requestBody(provider, model, messages) {
+  if (provider === 'gemini') {
+    // Gemini 3.x can't switch thinking off; "low" is the fastest level every 3.x model accepts.
+    // max_tokens includes thinking tokens, so leave headroom; the prompt keeps the answer short.
+    return { model, messages, max_tokens: 2048, reasoning_effort: 'low' };
+  }
+  const isThinkingModel = model.includes('super') || model.includes('ultra');
+  return isThinkingModel
+    ? { model, messages, max_tokens: 400, temperature: 1.0, top_p: 0.95, chat_template_kwargs: { enable_thinking: false } }
+    : { model, messages, max_tokens: 400, temperature: 0.5 };
+}
 
-    const resp = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
+async function aiRequest(provider, key, model, messages, timeoutMs = CALL_TIMEOUT_MS) {
+  try {
+    const resp = await fetch(ENDPOINT[provider], {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      body: JSON.stringify(requestBody(provider, model, messages)),
       signal: AbortSignal.timeout(timeoutMs), // slow model → status 0 → next model
     });
 
-    if (!resp.ok) return { content: null, status: resp.status };
+    if (!resp.ok) {
+      // Google answers a bad/revoked key with 400 API_KEY_INVALID — that's a key problem, not a model problem
+      const text = await resp.text().catch(() => '');
+      const badKey = resp.status === 400 && /API_KEY_INVALID|API key not valid/i.test(text);
+      return { content: null, status: badKey ? 401 : resp.status };
+    }
 
     const data = await resp.json();
     const raw = data?.choices?.[0]?.message?.content || '';
@@ -169,8 +188,9 @@ async function nimRequest(key, model, messages, timeoutMs = CALL_TIMEOUT_MS) {
   }
 }
 
-function nimKeys(env) {
-  return [env.NIM_KEY_1, env.NIM_KEY_2, env.NIM_KEY_3, env.NIM_KEY_4].filter(Boolean);
+// Model replies sometimes wrap JSON in ```json fences — accept both.
+function parseJSONReply(s) {
+  return JSON.parse(stripThink(s).replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, ''));
 }
 
 function stripThink(s) {
@@ -182,7 +202,7 @@ function json(obj, status, headers) {
   return new Response(JSON.stringify(obj), { status, headers });
 }
 
-const DEFAULT_MODELS = 'mistralai/mistral-large-4-1t-a52b,z-ai/glm-5.3-flash,nvidia/nemotron-3.5-super-vl-120b-a12b';
+const DEFAULT_MODELS = 'gemini-3.8-flash,nvidia/nemotron-3.5-super-vl-120b-a12b,gemini-3.5-flash-lite,nvidia/nemotron-3-super-120b-a12b';
 
 // Bake-off system prompt — evaluates PM interview answers
 const BAKEOFF_SYSTEM = `You are a PM interview coach evaluating an answer.
