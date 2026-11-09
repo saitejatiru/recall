@@ -54,7 +54,7 @@ Add each of these as a **Variable** (plain text, no encryption needed):
 | Variable name | Value | Purpose |
 |---------------|-------|---------|
 | `ALLOWED_ORIGIN` | `https://saitejatiru.github.io` | Only this origin can call the Worker |
-| `MODELS` | `nvidia/nemotron-3.5-super-vl-120b-a12b,gemini-3.5-flash-lite,gemini-3.8-flash` | AI models in priority order, comma-separated. Names starting with `gemini-` go to Google (uses `GEMINI_KEY_*`); all others go to NVIDIA (uses `NIM_KEY_*`). The Worker tries the 1st model, then the next. |
+| `MODELS` | `gemini-3.5-flash-lite,nvidia/nemotron-3.5-super-vl-120b-a12b,gemini-3.8-flash` | AI models in priority order, comma-separated. Names starting with `gemini-` go to Google (uses `GEMINI_KEY_*`); all others go to NVIDIA (uses `NIM_KEY_*`). The Worker tries the 1st model, then the next. |
 
 **Gemini keys (optional):** add them as **Secrets** named `GEMINI_KEY_1` … `GEMINI_KEY_10`. Note: Google applies rate limits **per Google Cloud project, not per key** — several keys from the same project share one limit. On Google's free tier, prompts and replies may be used to improve Google's products (your answers and resume excerpts are in those prompts); enabling billing changes that.
 | `DAILY_CAP` | `300` | Maximum requests per day; adjust freely |
@@ -149,6 +149,15 @@ The bake-off lets you compare how well each model scores PM interview answers be
 | Latency < 3 seconds | check | check | check |
 
 **Fail signals:** Score 6+ for Answer 1 or 3 = model is too lenient. Score below 6 for Answer 2 = model is too harsh. Generic "add more detail" in the `fix` field = prompt needs refinement.
+
+### Live bake-off result (2026-11-09, real keys)
+
+| Model | A1 score | A2 score | A3 score | JSON valid | Avg latency |
+|-------|----------|----------|----------|------------|-------------|
+| `gemini-3.5-flash-lite` | 2 | 8 | 2 | 3/3 | ~1.7s |
+| `nvidia/nemotron-3.5-super-vl-120b-a12b` | 3 | 8 | 3 | — | ~0.7s |
+
+**Winner: `gemini-3.5-flash-lite`** — scores landed in expected ranges (2–4 / 7–9 / 2–4), JSON valid every time, PM-specific fixes, latency under 2s. Set first in `MODELS`.
 
 ### Setting your primary model
 
