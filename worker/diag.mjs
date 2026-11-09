@@ -1,6 +1,6 @@
 // Run: node worker/diag.mjs [model ...]
 // Runs the REAL worker.js locally against NVIDIA/Gemini with your keys from .dev.vars
-// (git-ignored, never committed, never printed). Waits up to 90s per call so true latency shows.
+// (git-ignored, never committed, never printed). Waits up to ~5 min per call so true latency shows.
 import { readFileSync } from 'node:fs';
 import worker from './worker.js';
 
@@ -18,7 +18,7 @@ const count = (p) => Object.keys(vars).filter(k => k.startsWith(p) && vars[k]).l
 console.log(`keys found: NIM=${count('NIM_KEY_')} GEMINI=${count('GEMINI_KEY_')} (values not shown)\n`);
 
 const ORIGIN = 'https://diag.local';
-const env = { ...vars, ALLOWED_ORIGIN: ORIGIN, PASSCODE: 'diag', KV: undefined, CALL_TIMEOUT_MS: '90000', TOTAL_BUDGET_MS: '95000' };
+const env = { ...vars, ALLOWED_ORIGIN: ORIGIN, PASSCODE: 'diag', KV: undefined, CALL_TIMEOUT_MS: '290000', TOTAL_BUDGET_MS: '295000' };
 const answers = [
   'Payment conversion dropped 15%. I would look at the data and find the problem and fix it.',
   'Payment conversion fell from 72% to 59% in two weeks. I would segment by platform, payment method, and user cohort; check for latency spikes on the payments API; and rule out UX regressions from the recent deploy before proposing solutions.',

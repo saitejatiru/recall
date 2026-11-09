@@ -73,10 +73,9 @@ export default {
       const models = body.model ? [String(body.model)] : modelList(env);
       // ponytail: max 3 answers per request so one call can't bypass DAILY_CAP
       const answers = Array.isArray(body.answers) ? body.answers.slice(0, 3).map(a => String(a).slice(0, 4000)) : [];
-      const results = [];
-
-      // answers scored in parallel, so the whole bake-off takes about as long as one answer
-      results.push(...await Promise.all(answers.map(async (answer, i) => {
+      // answers scored in parallel, so the whole bake-off takes about as long as one answer;
+      // streamed so the connection stays alive however long the models think
+      return streamJSON(async () => ({ results: await Promise.all(answers.map(async (answer, i) => {
         const t0 = Date.now();
         const { content, error, model: usedModel } = await callAI(env, models, [
           { role: 'system', content: BAKEOFF_SYSTEM },
@@ -90,9 +89,7 @@ export default {
           catch { feedback = { raw: content }; }
         }
         return { answer_index: i, model: usedModel, latency_ms, feedback, valid_json, error: error || null };
-      })));
-
-      return json({ results }, 200, CORS(allowedOrigin));
+      })) }), CORS(allowedOrigin));
     }
 
     // --- COACH (Phase 3 adds this) ---
@@ -125,8 +122,8 @@ function keysFor(env, provider) {
 // Each model in order, each across its provider's keys, within one overall time budget.
 // Key problem (401/403/429/5xx) → next key. Model problem (timeout, 400, empty reply) → next model:
 // a slow model is slow on every key, so retrying it per key only multiplies the wait.
-// User accepts 60-90s replies (thinking models on free tiers are slow): 85s per call, 110s per answer overall.
-const CALL_TIMEOUT_MS = 85000, TOTAL_BUDGET_MS = 110000;
+// User prefers waiting for a thoughtful reply: up to ~5 minutes per answer (fast replies return at once).
+const CALL_TIMEOUT_MS = 290000, TOTAL_BUDGET_MS = 295000;
 async function callAI(env, models, messages) {
   // timeouts can be raised via Worker variables (used by worker/diag.mjs to measure true latency)
   const callTimeout = Number(env.CALL_TIMEOUT_MS) || CALL_TIMEOUT_MS;
@@ -215,6 +212,20 @@ function stripThink(s) {
 
 function json(obj, status, headers) {
   return new Response(JSON.stringify(obj), { status, headers });
+}
+
+// Long AI calls: answer 200 at once, send a space every 10s while working (keeps Cloudflare and the
+// browser from dropping an idle connection), then the JSON. JSON.parse ignores leading whitespace.
+function streamJSON(work, headers) {
+  const { readable, writable } = new TransformStream();
+  const out = writable.getWriter(), enc = new TextEncoder();
+  out.write(enc.encode(' ')).catch(() => {}); // first byte right away
+  const beat = setInterval(() => out.write(enc.encode(' ')).catch(() => {}), 10000);
+  work()
+    .then(obj => out.write(enc.encode(JSON.stringify(obj))))
+    .catch(e => { console.error('stream work failed:', e.message); return out.write(enc.encode(JSON.stringify({ error: 'server_error' }))); })
+    .finally(() => { clearInterval(beat); out.close().catch(() => {}); });
+  return new Response(readable, { status: 200, headers });
 }
 
 const DEFAULT_MODELS = 'gemini-3.8-flash,nvidia/nemotron-3.5-super-vl-120b-a12b,gemini-3.5-flash-lite,nvidia/nemotron-3-super-120b-a12b';
