@@ -284,7 +284,7 @@ function streamJSON(work, headers) {
   return new Response(readable, { status: 200, headers });
 }
 
-const DEFAULT_MODELS = 'nvidia/nemotron-3.5-super-vl-120b-a12b,gemini-3.5-flash-lite,gemini-3.8-flash';
+const DEFAULT_MODELS = 'gemini-3.5-flash-lite,nvidia/nemotron-3.5-super-vl-120b-a12b,gemini-3.8-flash';
 
 // Bake-off system prompt — evaluates PM interview answers
 const BAKEOFF_SYSTEM = `You are a PM interview coach evaluating an answer.
