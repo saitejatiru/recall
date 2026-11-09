@@ -90,16 +90,51 @@ Deferred. Tracked but not in the current roadmap.
 
 ## Traceability
 
-Filled during roadmap creation.
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
+| JRNY-01 | Phase 2 | Pending |
+| JRNY-02 | Phase 2 | Pending |
+| JRNY-03 | Phase 2 | Pending |
+| JRNY-04 | Phase 2 | Pending |
+| JRNY-05 | Phase 2 | Pending |
+| JRNY-06 | Phase 2 | Pending |
+| JRNY-07 | Phase 2 | Pending |
+| VOC-01 | Phase 2 | Pending |
+| VOC-02 | Phase 2 | Pending |
+| VOC-03 | Phase 2 | Pending |
+| PRAC-01 | Phase 2 | Pending |
+| PRAC-02 | Phase 2 | Pending |
+| PRAC-03 | Phase 2 | Pending |
+| PRAC-04 | Phase 2 | Pending |
+| PRAC-05 | Phase 2 | Pending |
+| PRAC-06 | Phase 2 | Pending |
+| COACH-01 | Phase 3 | Pending |
+| COACH-02 | Phase 3 | Pending |
+| COACH-03 | Phase 3 | Pending |
+| COACH-04 | Phase 3 | Pending |
+| COACH-05 | Phase 3 | Pending |
+| COACH-06 | Phase 2 | Pending |
+| COACH-07 | Phase 3 | Pending |
+| RES-01 | Phase 2 | Pending |
+| RES-02 | Phase 2 | Pending |
+| RES-03 | Phase 2 | Pending |
+| WEAK-01 | Phase 3 | Pending |
+| WEAK-02 | Phase 3 | Pending |
+| WEAK-03 | Phase 3 | Pending |
+| PROXY-01 | Phase 1 | Pending |
+| PROXY-02 | Phase 1 | Pending |
+| PROXY-03 | Phase 1 | Pending |
+| PROXY-04 | Phase 1 | Pending |
+| PROXY-05 | Phase 1 | Pending |
+| PROXY-06 | Phase 1 | Pending |
+| END-01 | Phase 4 | Pending |
+| END-02 | Phase 4 | Pending |
 
 **Coverage:**
 - v1 requirements: 37 total
-- Mapped to phases: 0
-- Unmapped: 37 ⚠️
+- Mapped to phases: 37
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-11-09*
-*Last updated: 2026-11-09 after initial definition*
+*Last updated: 2026-11-09 after roadmap creation*
