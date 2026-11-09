@@ -6,7 +6,7 @@ RECALL transforms an existing multi-tab PM practice tool into a guided daily jou
 
 ## Phases
 
-- [ ] **Phase 1: Proxy & Hosting** - Cloudflare Worker proxy with key rotation, auth, and GitHub Pages deploy; no AI call is possible without this
+- [x] **Phase 1: Proxy & Hosting** - Cloudflare Worker proxy with key rotation, auth, and GitHub Pages deploy; no AI call is possible without this (completed 2026-11-09)
 - [ ] **Phase 2: Journey Shell** - Complete 5-step daily journey (vocab, recall, speaking, case, interview), resume upload, Leitner review, and storage migration — all offline-testable
 - [ ] **Phase 3: AI Coach + Weak Spots** - Live NIM feedback on every step with rubric-anchored scoring, weak-spot tagging, and adaptive question selection
 - [ ] **Phase 4: Endless Mode** - AI-generated fresh daily content after day 30, using the user's weak-spot history and resume
@@ -89,7 +89,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Proxy & Hosting | 3/3 | In Progress|  |
+| 1. Proxy & Hosting | 3/3 | Complete    | 2026-11-09 |
 | 2. Journey Shell | 0/? | Not started | - |
 | 3. AI Coach + Weak Spots | 0/? | Not started | - |
 | 4. Endless Mode | 0/? | Not started | - |

@@ -1,9 +1,10 @@
 ---
 phase: 01-proxy-hosting
 verified: 2026-11-09T00:00:00Z
-status: human_needed
-score: 18/19 must-haves verified
-behavior_unverified: 1
+status: passed
+score: 19/19 must-haves verified
+behavior_unverified: 0
+human_verified: 2026-11-09T17:13:03Z
 overrides_applied: 0
 re_verification: false
 behavior_unverified_items:
@@ -22,7 +23,7 @@ human_verification:
 **Phase Goal:** AI calls from the app can reach NVIDIA NIM via a secure Cloudflare Worker, with no keys ever touching the browser or repo. (Expanded by user: Google Gemini added as second provider alongside NVIDIA NIM — goal intent unchanged.)
 
 **Verified:** 2026-11-09
-**Status:** human_needed
+**Status:** passed — human item T19 confirmed by the user on 2026-11-09 (DevTools: POST to recall-proxy has no Authorization header, 38-byte body = task + passcode only). See 01-UAT.md.
 **Re-verification:** No — initial verification
 
 ## Accepted Deviations (User-Directed)
