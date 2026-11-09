@@ -1,0 +1,105 @@
+# Requirements: RECALL — PM Communication Coach
+
+**Defined:** 2026-11-09
+**Core Value:** After every practice answer, the learner gets short, specific and personalised feedback (score, the one fix that matters most, and a better line to say) so each day's practice measurably improves how they articulate PM answers.
+
+## v1 Requirements
+
+### Journey (single tab)
+
+- [ ] **JRNY-01**: User sees one page (no tabs) with today's journey as ordered steps and a progress bar
+- [ ] **JRNY-02**: User can close the browser mid-journey and continue at the same step when they come back
+- [ ] **JRNY-03**: When all steps are done, user sees a day summary: scores, words learned, top weak spots
+- [ ] **JRNY-04**: User sees their current streak (survives one missed day) and a 30-day progress grid
+- [ ] **JRNY-05**: Each step shows a time hint, and a full day takes 20–30 minutes
+- [ ] **JRNY-06**: Progress saved by the old version of the app is still there after the upgrade
+- [ ] **JRNY-07**: User can export all progress to a JSON file and import it on another device
+
+### Vocabulary
+
+- [ ] **VOC-01**: Each day the user gets 5 new PM words (from a 150-term curriculum), each with a plain meaning, an everyday example and an interview usage example
+- [ ] **VOC-02**: User writes or says their own sentence for each word, and the coach says whether the usage is right and gives a better sentence
+- [ ] **VOC-03**: Earlier words come back for review on a spaced schedule (Leitner boxes), at most 5 reviews a day
+
+### Practice
+
+- [ ] **PRAC-01**: Recall step: user writes from memory what they learned yesterday (words and the main fix), then sees what they missed
+- [ ] **PRAC-02**: Speaking step: 30 s think + 90 s timed spoken answer to the day's prompt; the transcript appears after speaking and can be edited before submitting
+- [ ] **PRAC-03**: If speech recognition is not available, the user can type every answer instead (one-line notice, no error)
+- [ ] **PRAC-04**: Case step: one product case per day that the user answers (spoken or typed)
+- [ ] **PRAC-05**: Unexpected question: the question is hidden until the user starts; 30 s think, 90 s answer; the coach then asks one follow-up question and the user answers it
+- [ ] **PRAC-06**: For spoken answers the user sees a filler-word count (um, uh, like, you know…) worked out without an AI call
+
+### AI Coach
+
+- [ ] **COACH-01**: After each answer the user gets: score 1–10, what landed, the one most important fix, and a better line to say — at most ~80 words, in plain language
+- [ ] **COACH-02**: The coach stays on PM interview coaching and politely refuses off-topic requests
+- [ ] **COACH-03**: Better lines use the user's resume projects and numbers, and never invent facts that are not in the resume
+- [ ] **COACH-04**: Scores follow one fixed rubric (structure, clarity, PM vocabulary, metrics, impact, conciseness), so they are comparable across days, and feedback does not open with empty praise
+- [ ] **COACH-05**: When the coach notices a missed chance, it names a PM word the user has already learned that would have fit
+- [ ] **COACH-06**: If the AI is unavailable or slow, the user can self-check with a checklist and continue; the AI never blocks the day
+- [ ] **COACH-07**: Text inside an answer or resume cannot change the coach's rules (prompt-injection guard)
+
+### Resume
+
+- [ ] **RES-01**: User uploads a PDF resume; text is extracted in the browser, shown for editing, and saved on the device only
+- [ ] **RES-02**: If the PDF has no readable text (scanned), the user is told and can paste the text instead
+- [ ] **RES-03**: User can replace or delete the saved resume
+
+### Weak Spots
+
+- [ ] **WEAK-01**: Each piece of feedback tags mistakes from a fixed list of 10 (e.g. no-metric, rambling, no-structure), and the tags are saved
+- [ ] **WEAK-02**: The journey intro shows the top weak spots from the last 7 days and today's focus
+- [ ] **WEAK-03**: The unexpected question and case are picked to push on the user's top weak spot
+
+### Proxy & Hosting
+
+- [ ] **PROXY-01**: All AI calls go through a Cloudflare Worker; NVIDIA keys live only in Worker secrets, and nothing secret is in the repo or the browser
+- [ ] **PROXY-02**: The Worker rotates across 3–4 keys, moves to the next key on 429/5xx, and falls back to the fast model if the primary fails
+- [ ] **PROXY-03**: The Worker only serves the GitHub Pages origin with the app passcode, and enforces a daily request cap
+- [ ] **PROXY-04**: User can set up Cloudflare and GitHub Pages by following a step-by-step guide without writing code
+- [ ] **PROXY-05**: The model is confirmed by a bake-off on 3 sample answers with real keys, and can be changed in Worker settings without a code change
+- [ ] **PROXY-06**: The app is live on GitHub Pages from https://github.com/saitejatiru/recall
+
+### Endless Mode
+
+- [ ] **END-01**: After day 30, each new day (5 new words, prompt, case, unexpected question) is generated by the AI using the user's weak spots and resume, without repeating words
+- [ ] **END-02**: If generation fails, the day is built from a remix of the built-in content
+
+## v2 Requirements
+
+Deferred. Tracked but not in the current roadmap.
+
+- **V2-01**: "Focused drill" day when a weak-spot tag fires 5+ times in a week
+- **V2-02**: Score trend per question category over time
+- **V2-03**: Vocabulary cross-reference against the full 150-term list in every feedback call (token cost)
+
+## Out of Scope
+
+| Feature | Reason |
+|---------|--------|
+| Focus & Detox (screen-time log, boundaries, journal) | User chose to keep the journey on PM skills |
+| Multi-device sync / accounts / database | One device + JSON backup is enough for one learner |
+| Audio recording, voice-tone or video analysis | Needs other model classes; the transcript covers most of the value |
+| DOCX resume | PDF covers most resumes; paste fallback exists |
+| Leaderboards / social features | Single-user personal tool |
+| Punitive streaks | Causes drop-off; grace day instead |
+| Unlimited feedback retries per step | Burns rate limits; one feedback per step |
+| Live transcript overlay while speaking | Distracts from thinking; transcript shown after |
+| Native mobile app | Responsive web page covers phone use |
+
+## Traceability
+
+Filled during roadmap creation.
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+
+**Coverage:**
+- v1 requirements: 37 total
+- Mapped to phases: 0
+- Unmapped: 37 ⚠️
+
+---
+*Requirements defined: 2026-11-09*
+*Last updated: 2026-11-09 after initial definition*

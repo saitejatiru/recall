@@ -11,7 +11,7 @@ RECALL is a personal, single-page daily PM interview coaching app that transform
 
 The recommended build order is: Worker proxy first, then storage with schema migration, then resume module, then journey shell with all offline steps, then AI integration, then weak-spot tracking, and finally AI-generated endless days. This order means 7 of 11 build steps require zero API credits. The 150-term PM vocabulary curriculum, Leitner spaced-review system, and 5-step daily arc (Vocab > Recall > Speaking > Case > Interview) are fully specified in research and ready to implement.
 
-The top risks are: (1) API keys committed to the public repo - mitigated by Cloudflare Worker secrets and a pre-commit hook; (2) NIM rate-limit 429s breaking the user daily flow - mitigated by round-robin key rotation with per-step self-assess fallback; and (3) the AI giving generically flattering feedback - mitigated by a strict rubric-anchored system prompt with score floors and a prohibition on praise openers. All three risks have concrete, tested mitigations documented in PITFALLS.md.
+The top risks are: (1) API keys committed to the public repo - mitigated by Cloudflare Worker secrets and a pre-commit hook; (2) NIM rate-limit 429s breaking the user daily flow - mitigated by round-robin key rotation with per-step self-assess fallback; and (3) the AI giving generically flattering feedback - mitigated by a strict rubric-anchored system prompt with score floors and a prohibition on praise openers. All three risks have concrete mitigations documented in PITFALLS.md (not yet tested).
 
 ## Key Findings
 
@@ -27,7 +27,7 @@ The entire stack is zero-cost and zero-dependency on the browser side. The Cloud
 - pdfjs-dist 6.5.438 (jsDelivr CDN): Resume extraction - ESM import, `GlobalWorkerOptions.workerSrc` required, editable textarea before saving
 - GitHub Pages: Static hosting - push-to-deploy on main
 
-**Locked decision:** Model is `nvidia/nemotron-3-super-120b-a12b` with `chat_template_kwargs: {"enable_thinking": false}`, `temperature: 1.0`, `top_p: 0.95`. Confirmed via Phase 1 bake-off. Do not reopen.
+**Locked decision:** Model is `nvidia/nemotron-3-super-120b-a12b` with `chat_template_kwargs: {"enable_thinking": false}`, `temperature: 1.0`, `top_p: 0.95`. Chosen from model cards; to be confirmed by the Phase 1 bake-off with real keys (swap to fallback if it fails JSON/quality checks).
 
 ### Expected Features
 
