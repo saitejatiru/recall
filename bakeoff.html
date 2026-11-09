@@ -92,7 +92,9 @@ async function runBakeoff() {
   const resultsTable = document.getElementById('results');
   const resultsBody = document.getElementById('resultsBody');
 
-  status.textContent = 'Running...';
+  const started = Date.now();
+  const tick = setInterval(() => { status.textContent = 'Running... ' + Math.round((Date.now() - started) / 1000) + 's'; }, 1000);
+  status.textContent = 'Running... 0s';
   resultsTable.classList.add('hidden');
   resultsBody.innerHTML = '';
 
@@ -101,7 +103,9 @@ async function runBakeoff() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ task: 'bakeoff', passcode, model, answers }),
+      signal: AbortSignal.timeout(90000), // Worker gives up per answer at ~55s
     });
+    clearInterval(tick);
 
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({}));
@@ -129,7 +133,10 @@ async function runBakeoff() {
     resultsTable.classList.remove('hidden');
     status.textContent = 'Done. ' + results.length + ' results.';
   } catch (e) {
-    status.textContent = 'Network error: ' + e.message;
+    clearInterval(tick);
+    status.textContent = e.name === 'TimeoutError'
+      ? 'No reply after 90s — this model is too slow right now. Try the next model.'
+      : 'Network error: ' + e.message;
   }
 }
 

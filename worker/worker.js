@@ -69,17 +69,19 @@ export default {
 
     // --- BAKEOFF ---
     if (task === 'bakeoff') {
-      const models = modelList(env, body.model);
+      // bake-off measures ONE model: a picked model is tested alone (no silent fallback)
+      const models = body.model ? [String(body.model)] : modelList(env);
       // ponytail: max 3 answers per request so one call can't bypass DAILY_CAP
       const answers = Array.isArray(body.answers) ? body.answers.slice(0, 3).map(a => String(a).slice(0, 4000)) : [];
       const keys = nimKeys(env);
       const results = [];
 
-      for (let i = 0; i < answers.length; i++) {
+      // answers scored in parallel, so the whole bake-off takes about as long as one answer
+      results.push(...await Promise.all(answers.map(async (answer, i) => {
         const t0 = Date.now();
         const { content, error, model: usedModel } = await callNIM(keys, models, [
           { role: 'system', content: BAKEOFF_SYSTEM },
-          { role: 'user', content: answers[i] },
+          { role: 'user', content: answer },
         ]);
         const latency_ms = Date.now() - t0;
 
@@ -88,8 +90,8 @@ export default {
           try { feedback = JSON.parse(stripThink(content)); valid_json = true; }
           catch { feedback = { raw: content }; }
         }
-        results.push({ answer_index: i, model: usedModel, latency_ms, feedback, valid_json, error: error || null });
-      }
+        return { answer_index: i, model: usedModel, latency_ms, feedback, valid_json, error: error || null };
+      })));
 
       return json({ results }, 200, CORS(allowedOrigin));
     }
@@ -109,23 +111,34 @@ function modelList(env, requested) {
   return requested ? [requested, ...list.filter(m => m !== requested)] : list;
 }
 
-// Shared NIM call: each model in order, each across all keys.
-// Key problem (401/403/429/5xx/timeout) → next key; model problem (e.g. 400 or empty reply) → next model.
+// Shared NIM call: each model in order, each across all keys, within one overall time budget.
+// Key problem (401/403/429/5xx) → next key. Model problem (timeout, 400, empty reply) → next model:
+// a slow model is slow on every key, so retrying it per key only multiplies the wait.
+const CALL_TIMEOUT_MS = 20000, TOTAL_BUDGET_MS = 55000;
 async function callNIM(keys, models, messages) {
+  const deadline = Date.now() + TOTAL_BUDGET_MS;
+  let last = 'no_keys';
   for (const model of models) {
     for (let attempt = 0; attempt < keys.length; attempt++) {
+      const left = deadline - Date.now();
+      if (left < 3000) return { content: null, error: 'out_of_time', model: null };
+      const keyNo = (idx % keys.length) + 1;
       const key = keys[idx % keys.length];
       idx = (idx + 1) % keys.length;
-      const result = await nimRequest(key, model, messages);
+      const t0 = Date.now();
+      const result = await nimRequest(key, model, messages, Math.min(CALL_TIMEOUT_MS, left));
+      // log status + timing only — never keys or message bodies
+      console.log(`nim model=${model} key#${keyNo} status=${result.status} ms=${Date.now() - t0}`);
       if (result.content) return { content: result.content, model };
-      const keyProblem = result.status === 0 || result.status === 429 || result.status === 401 || result.status === 403 || result.status >= 500;
+      last = result.status === 0 ? 'timeout' : `status_${result.status}`;
+      const keyProblem = result.status === 401 || result.status === 403 || result.status === 429 || result.status >= 500;
       if (!keyProblem) break;
     }
   }
-  return { content: null, error: 'all_models_failed', model: null };
+  return { content: null, error: last, model: null };
 }
 
-async function nimRequest(key, model, messages) {
+async function nimRequest(key, model, messages, timeoutMs = CALL_TIMEOUT_MS) {
   try {
     const isThinkingModel = model.includes('super') || model.includes('ultra');
     const body = {
@@ -143,7 +156,7 @@ async function nimRequest(key, model, messages) {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(25000), // hung request → treated as timeout, next key
+      signal: AbortSignal.timeout(timeoutMs), // slow model → status 0 → next model
     });
 
     if (!resp.ok) return { content: null, status: resp.status };

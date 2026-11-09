@@ -38,6 +38,21 @@ fakeNim((_k, model) => model === 'm1' ? reply(400) : model === 'm2' ? reply(429)
 r = await call({ task: 'bakeoff', passcode: 'pw', answers: ['a'] }, { ...base, MODELS: 'm1, m2, m3' });
 assert.equal(r.json.results[0].model, 'm3');
 
+// 3c. a timed-out model is skipped after ONE try (not once per key) and the next model answers
+fakeNim((_k, model) => { if (model === 'slow') throw new Error('timeout'); return reply(200); });
+calls = [];
+r = await call({ task: 'bakeoff', passcode: 'pw', answers: ['a'] }, { ...base, MODELS: 'slow,quick' });
+assert.equal(r.json.results[0].model, 'quick');
+assert.equal(calls.filter(c => c.endsWith(':slow')).length, 1, 'slow model must not be retried on every key');
+
+// 3d. a model picked in the bake-off is tested alone: no silent fallback, the error is reported
+fakeNim((_k, model) => model === 'picked' ? reply(400) : reply(200));
+calls = [];
+r = await call({ task: 'bakeoff', passcode: 'pw', model: 'picked', answers: ['a'] });
+assert.equal(r.json.results[0].model, null);
+assert.equal(r.json.results[0].error, 'status_400');
+assert.ok(calls.every(c => c.endsWith(':picked')), 'no other model may be called');
+
 // 4. one request can't fan out past 3 answers
 fakeNim(() => reply(200));
 calls = [];
