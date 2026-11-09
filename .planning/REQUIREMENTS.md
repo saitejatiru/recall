@@ -57,9 +57,9 @@
 - [ ] **PROXY-01**: All AI calls go through a Cloudflare Worker; NVIDIA keys live only in Worker secrets, and nothing secret is in the repo or the browser
 - [ ] **PROXY-02**: The Worker rotates across 3–4 keys, moves to the next key on 429/5xx, and falls back to the fast model if the primary fails
 - [ ] **PROXY-03**: The Worker only serves the GitHub Pages origin with the app passcode, and enforces a daily request cap
-- [ ] **PROXY-04**: User can set up Cloudflare and GitHub Pages by following a step-by-step guide without writing code
+- [x] **PROXY-04**: User can set up Cloudflare and GitHub Pages by following a step-by-step guide without writing code
 - [ ] **PROXY-05**: The model is confirmed by a bake-off on 3 sample answers with real keys, and can be changed in Worker settings without a code change
-- [ ] **PROXY-06**: The app is live on GitHub Pages from https://github.com/saitejatiru/recall
+- [x] **PROXY-06**: The app is live on GitHub Pages from https://github.com/saitejatiru/recall
 
 ### Endless Mode
 
@@ -124,13 +124,14 @@ Deferred. Tracked but not in the current roadmap.
 | PROXY-01 | Phase 1 | Pending |
 | PROXY-02 | Phase 1 | Pending |
 | PROXY-03 | Phase 1 | Pending |
-| PROXY-04 | Phase 1 | Pending |
+| PROXY-04 | Phase 1 | Complete |
 | PROXY-05 | Phase 1 | Pending |
-| PROXY-06 | Phase 1 | Pending |
+| PROXY-06 | Phase 1 | Complete |
 | END-01 | Phase 4 | Pending |
 | END-02 | Phase 4 | Pending |
 
 **Coverage:**
+
 - v1 requirements: 37 total
 - Mapped to phases: 37
 - Unmapped: 0 ✓

@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 1
 current_phase_name: Proxy & Hosting
 status: executing
-stopped_at: Roadmap written, ready to plan Phase 1
-last_updated: "2026-11-09T09:28:46.500Z"
+stopped_at: Completed 01-02-PLAN.md, starting 01-03
+last_updated: "2026-11-09T10:35:23.154Z"
 last_activity: 2026-11-09
 last_activity_desc: Phase 1 execution started
 progress:
   total_phases: 1
   completed_phases: 0
   total_plans: 3
-  completed_plans: 0
+  completed_plans: 2
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 1 (Proxy & Hosting) — EXECUTING
-Plan: 1 of 3
-Status: Executing Phase 1
+Plan: 2 of 3
+Status: Ready to execute
 Last activity: 2026-11-09 — Phase 1 execution started
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [███████░░░] 67%
 
 ## Performance Metrics
 
@@ -54,6 +54,11 @@ Progress: [░░░░░░░░░░] 0%
 - Trend: —
 
 *Updated after each plan completion*
+**Per-Plan Metrics:**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 01-proxy-hosting P02 | session | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -66,6 +71,9 @@ Recent decisions affecting current work:
 - Project: nvidia/nemotron-3-super-120b-a12b primary; nemotron-3.5-lightning-30b-a3b failover
 - Project: System prompt locked in Worker only; browser never sees it
 - Project: localStorage + JSON backup; no accounts or server storage
+- [Phase ?]: Cloudflare Pages (recallnow.pages.dev) replaces GitHub Pages — Git-connected, auto-deploys on push, zero migration cost
+- [Phase ?]: MODELS ordered list (user-specified priority) replaces PRIMARY_MODEL/FALLBACK_MODEL — Worker iterates comma-split list, backward-compat vars retained
+- [Phase ?]: fail-closed Worker passcode: unset PASSCODE secret returns 403 (not passthrough)
 
 ### Pending Todos
 
@@ -78,6 +86,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-11-09
-Stopped at: Roadmap written, ready to plan Phase 1
+Last session: 2026-11-09T10:35:23.139Z
+Stopped at: Completed 01-02-PLAN.md, starting 01-03
 Resume file: None

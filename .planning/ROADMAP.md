@@ -26,7 +26,7 @@ RECALL transforms an existing multi-tab PM practice tool into a guided daily jou
   4. No NVIDIA key appears in the repo history, the browser network tab, or any Worker log
   5. The learner can deploy both Worker and GitHub Pages by following the written guide, without writing any code
 
-**Plans**: 1/3 plans executed
+**Plans**: 2/3 plans executed
 
 Plans:
 **Wave 1**
@@ -35,7 +35,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 01-02-PLAN.md — Human deploy: git push, Cloudflare Worker setup (secrets + KV), GitHub Pages enable
+- [x] 01-02-PLAN.md — Human deploy: git push, Cloudflare Worker setup (secrets + KV), GitHub Pages enable
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -89,7 +89,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Proxy & Hosting | 1/3 | In Progress|  |
+| 1. Proxy & Hosting | 2/3 | In Progress|  |
 | 2. Journey Shell | 0/? | Not started | - |
 | 3. AI Coach + Weak Spots | 0/? | Not started | - |
 | 4. Endless Mode | 0/? | Not started | - |
