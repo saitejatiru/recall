@@ -127,7 +127,9 @@ function keysFor(env, provider) {
 // a slow model is slow on every key, so retrying it per key only multiplies the wait.
 const CALL_TIMEOUT_MS = 20000, TOTAL_BUDGET_MS = 55000;
 async function callAI(env, models, messages) {
-  const deadline = Date.now() + TOTAL_BUDGET_MS;
+  // timeouts can be raised via Worker variables (used by worker/diag.mjs to measure true latency)
+  const callTimeout = Number(env.CALL_TIMEOUT_MS) || CALL_TIMEOUT_MS;
+  const deadline = Date.now() + (Number(env.TOTAL_BUDGET_MS) || TOTAL_BUDGET_MS);
   let last = 'no_keys';
   for (const model of models) {
     const provider = providerOf(model);
@@ -140,9 +142,11 @@ async function callAI(env, models, messages) {
       const key = keys[idx[provider] % keys.length];
       idx[provider] = (idx[provider] + 1) % keys.length;
       const t0 = Date.now();
-      const result = await aiRequest(provider, key, model, messages, Math.min(CALL_TIMEOUT_MS, left));
-      // log status + timing only — never keys or message bodies
-      console.log(`ai ${provider} model=${model} key#${keyNo} status=${result.status} ms=${Date.now() - t0}`);
+      const result = await aiRequest(provider, key, model, messages, Math.min(callTimeout, left));
+      // log status, timing, stop reason, token use and provider error text — never keys or message bodies
+      console.log(`ai ${provider} model=${model} key#${keyNo} status=${result.status} ms=${Date.now() - t0}` +
+        (result.finish ? ` finish=${result.finish}` : '') + (result.tokens ? ` tokens=${result.tokens}` : '') +
+        (result.errText ? ` err="${result.errText}"` : ''));
       if (result.content) return { content: result.content, model };
       last = result.status === 0 ? 'timeout' : `status_${result.status}`;
       const keyProblem = result.status === 401 || result.status === 403 || result.status === 429 || result.status >= 500;
@@ -177,14 +181,22 @@ async function aiRequest(provider, key, model, messages, timeoutMs = CALL_TIMEOU
       // Google answers a bad/revoked key with 400 API_KEY_INVALID — that's a key problem, not a model problem
       const text = await resp.text().catch(() => '');
       const badKey = resp.status === 400 && /API_KEY_INVALID|API key not valid/i.test(text);
-      return { content: null, status: badKey ? 401 : resp.status };
+      return { content: null, status: badKey ? 401 : resp.status, errText: text.replace(/\s+/g, ' ').slice(0, 160) };
     }
 
     const data = await resp.json();
-    const raw = data?.choices?.[0]?.message?.content || '';
-    return { content: stripThink(raw), status: resp.status };
+    const choice = data?.choices?.[0] || {};
+    const u = data?.usage || {};
+    const thinking = u.completion_tokens_details?.reasoning_tokens;
+    return {
+      content: stripThink(choice.message?.content || ''),
+      status: resp.status,
+      finish: choice.finish_reason,
+      tokens: `in:${u.prompt_tokens ?? '?'} out:${u.completion_tokens ?? '?'}${thinking != null ? ` thinking:${thinking}` : ''}`,
+    };
   } catch (e) {
-    return { content: null, status: 0, error: 'timeout' };
+    // status 0 = no reply in time, or the request itself failed (errText says which)
+    return { content: null, status: 0, error: 'timeout', errText: `${e.name}: ${e.message}`.slice(0, 160) };
   }
 }
 
