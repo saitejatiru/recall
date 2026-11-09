@@ -38,7 +38,7 @@ table{width:100%;border-collapse:collapse;margin-top:12px}th,td{text-align:left;
       <option value="mistralai/mistral-large-4-1t-a52b">NVIDIA · timed out</option>
     </datalist>
   </label>
-  <p class="small muted">Page version: 2026-11-09 · gemini + free-text model</p>
+  <p class="small muted">Page version: 2026-11-09 · 90s replies</p>
 </div>
 
 <div class="card">
@@ -108,7 +108,7 @@ async function runBakeoff() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ task: 'bakeoff', passcode, model, answers }),
-      signal: AbortSignal.timeout(90000), // Worker gives up per answer at ~55s
+      signal: AbortSignal.timeout(150000), // Worker gives up per answer at ~110s
     });
     clearInterval(tick);
 
@@ -140,7 +140,7 @@ async function runBakeoff() {
   } catch (e) {
     clearInterval(tick);
     status.textContent = e.name === 'TimeoutError'
-      ? 'No reply after 90s — this model is too slow right now. Try the next model.'
+      ? 'No reply after 150s — this model is too slow right now. Try the next model.'
       : 'Network error: ' + e.message;
   }
 }

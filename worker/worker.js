@@ -125,7 +125,8 @@ function keysFor(env, provider) {
 // Each model in order, each across its provider's keys, within one overall time budget.
 // Key problem (401/403/429/5xx) → next key. Model problem (timeout, 400, empty reply) → next model:
 // a slow model is slow on every key, so retrying it per key only multiplies the wait.
-const CALL_TIMEOUT_MS = 20000, TOTAL_BUDGET_MS = 55000;
+// User accepts 60-90s replies (thinking models on free tiers are slow): 85s per call, 110s per answer overall.
+const CALL_TIMEOUT_MS = 85000, TOTAL_BUDGET_MS = 110000;
 async function callAI(env, models, messages) {
   // timeouts can be raised via Worker variables (used by worker/diag.mjs to measure true latency)
   const callTimeout = Number(env.CALL_TIMEOUT_MS) || CALL_TIMEOUT_MS;
@@ -162,10 +163,12 @@ function requestBody(provider, model, messages) {
     // max_tokens includes thinking tokens, so leave headroom; the prompt keeps the answer short.
     return { model, messages, max_tokens: 2048, reasoning_effort: 'low' };
   }
+  // 2048 because reasoning models (GLM, Mistral) spend tokens thinking first; at 400 they could stop
+  // before writing any answer (empty reply). The prompt keeps the visible answer under 80 words.
   const isThinkingModel = model.includes('super') || model.includes('ultra');
   return isThinkingModel
-    ? { model, messages, max_tokens: 400, temperature: 1.0, top_p: 0.95, chat_template_kwargs: { enable_thinking: false } }
-    : { model, messages, max_tokens: 400, temperature: 0.5 };
+    ? { model, messages, max_tokens: 2048, temperature: 1.0, top_p: 0.95, chat_template_kwargs: { enable_thinking: false } }
+    : { model, messages, max_tokens: 2048, temperature: 0.5 };
 }
 
 async function aiRequest(provider, key, model, messages, timeoutMs = CALL_TIMEOUT_MS) {
