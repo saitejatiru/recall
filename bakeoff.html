@@ -45,7 +45,7 @@ table{width:100%;border-collapse:collapse;margin-top:12px}th,td{text-align:left;
       <option value="mistralai/mistral-large-4-1t-a52b">NVIDIA · timed out</option>
     </datalist>
   </label>
-  <p class="small muted">Page version: 2026-11-09 · 5-min replies + animation</p>
+  <p class="small muted">Page version: 2026-11-09 · diagnostics</p>
 </div>
 
 <div class="card">
@@ -85,6 +85,17 @@ table{width:100%;border-collapse:collapse;margin-top:12px}th,td{text-align:left;
   </thead>
   <tbody id="resultsBody"></tbody>
 </table>
+
+<div class="card" style="margin-top:18px">
+  <h2>Connection diagnostics</h2>
+  <p class="small">Sends a tiny "Reply OK" test from your Worker through each provider and request style at once (about 45 seconds at most). Shows which ones answer, how fast, and the provider's exact error otherwise.</p>
+  <button class="btn" id="diagBtn">Run connection diagnostics</button>
+  <p id="diagStatus" class="small muted"></p>
+  <table id="diagTable" class="hidden">
+    <thead><tr><th>Test</th><th>Status</th><th>Time ms</th><th>Reply / error</th></tr></thead>
+    <tbody id="diagBody"></tbody>
+  </table>
+</div>
 
 </div>
 <script src="config.js"></script>
@@ -180,5 +191,31 @@ async function runBakeoff() {
 }
 
 document.getElementById('runBtn').addEventListener('click', runBakeoff);
+
+async function runDiag() {
+  const workerUrl = document.getElementById('workerUrl').value.trim();
+  const passcode = document.getElementById('passcode').value.trim();
+  const st = document.getElementById('diagStatus'), btn = document.getElementById('diagBtn');
+  const body = document.getElementById('diagBody'), table = document.getElementById('diagTable');
+  const t0 = Date.now(), tick = setInterval(() => { st.textContent = 'Testing… ' + Math.round((Date.now() - t0) / 1000) + 's'; }, 1000);
+  btn.disabled = true; body.innerHTML = ''; table.classList.add('hidden'); st.textContent = 'Testing… 0s';
+  try {
+    const resp = await fetch(workerUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ task: 'diag', passcode }), signal: AbortSignal.timeout(90000) });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || !data.probes) { st.textContent = 'Error ' + resp.status + ': ' + (data.error || 'no diagnostics returned — is the latest worker.js deployed?'); return; }
+    data.probes.forEach(p => {
+      const ok = p.status === 200 && p.reply;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td class="small">${esc(p.label)}</td><td>${ok ? '&#10003; ' : '&#10007; '}${esc(p.status)}</td><td>${esc(p.ms)}</td><td class="small">${esc(ok ? p.reply : (p.error || 'empty reply'))}</td>`;
+      body.appendChild(tr);
+    });
+    table.classList.remove('hidden');
+    st.textContent = 'Done in ' + Math.round((Date.now() - t0) / 1000) + 's. Screenshot this table and send it.';
+  } catch (e) {
+    st.textContent = 'Network error: ' + e.message;
+  } finally { clearInterval(tick); btn.disabled = false; }
+}
+document.getElementById('diagBtn').addEventListener('click', runDiag);
 </script>
 </body></html>

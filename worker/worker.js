@@ -92,6 +92,11 @@ export default {
       })) }), CORS(allowedOrigin));
     }
 
+    // --- DIAG: tiny "Reply OK" probe through several request variants, from inside the Worker ---
+    if (task === 'diag') {
+      return streamJSON(async () => ({ probes: await Promise.all(DIAG_PROBES.map(p => probe(env, p))) }), CORS(allowedOrigin));
+    }
+
     // --- COACH (Phase 3 adds this) ---
     // case "coach": ... (system prompt injection goes here in Phase 3)
 
@@ -197,6 +202,45 @@ async function aiRequest(provider, key, model, messages, timeoutMs = CALL_TIMEOU
   } catch (e) {
     // status 0 = no reply in time, or the request itself failed (errText says which)
     return { content: null, status: 0, error: 'timeout', errText: `${e.name}: ${e.message}`.slice(0, 160) };
+  }
+}
+
+// Diagnostics: which provider/model/request shape actually answers from this Worker, and how fast.
+const DIAG_PROBES = [
+  { label: 'gemini-3.8-flash · OpenAI-compat · reasoning low', provider: 'gemini', model: 'gemini-3.8-flash', extra: { reasoning_effort: 'low' } },
+  { label: 'gemini-3.8-flash · OpenAI-compat · default', provider: 'gemini', model: 'gemini-3.8-flash', extra: {} },
+  { label: 'gemini-3.8-flash · native API', provider: 'gemini', model: 'gemini-3.8-flash', native: true },
+  { label: 'gemini-3.5-flash-lite · OpenAI-compat · default', provider: 'gemini', model: 'gemini-3.5-flash-lite', extra: {} },
+  { label: 'gemini-3.5-flash-lite · native API', provider: 'gemini', model: 'gemini-3.5-flash-lite', native: true },
+  { label: 'nemotron-3.5-super-vl · NIM · thinking off', provider: 'nim', model: 'nvidia/nemotron-3.5-super-vl-120b-a12b', extra: { chat_template_kwargs: { enable_thinking: false } } },
+  { label: 'nemotron-3-super · NIM · thinking off', provider: 'nim', model: 'nvidia/nemotron-3-super-120b-a12b', extra: { chat_template_kwargs: { enable_thinking: false } } },
+  { label: 'glm-5.3-flash · NIM · default', provider: 'nim', model: 'z-ai/glm-5.3-flash', extra: {} },
+];
+async function probe(env, p) {
+  const key = keysFor(env, p.provider)[0];
+  if (!key) return { label: p.label, status: 'no_key', ms: 0 };
+  const prompt = 'Reply with the single word OK.';
+  const t0 = Date.now();
+  try {
+    const resp = p.native
+      ? await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${p.model}:generateContent`, {
+          method: 'POST', headers: { 'x-goog-api-key': key, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: 512 } }),
+          signal: AbortSignal.timeout(45000) })
+      : await fetch(ENDPOINT[p.provider], {
+          method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: p.model, messages: [{ role: 'user', content: prompt }], max_tokens: 512, ...p.extra }),
+          signal: AbortSignal.timeout(45000) });
+    const text = await resp.text();
+    const ms = Date.now() - t0;
+    let reply = '';
+    try {
+      const d = JSON.parse(text);
+      reply = p.native ? (d.candidates?.[0]?.content?.parts || []).map(x => x.text || '').join('') : (d.choices?.[0]?.message?.content || '');
+    } catch { /* non-JSON error page */ }
+    return { label: p.label, status: resp.status, ms, reply: stripThink(reply).slice(0, 40), error: resp.ok ? '' : text.replace(/\s+/g, ' ').slice(0, 200) };
+  } catch (e) {
+    return { label: p.label, status: 0, ms: Date.now() - t0, error: `${e.name}: ${e.message}`.slice(0, 200) };
   }
 }
 

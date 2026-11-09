@@ -86,6 +86,19 @@ fakeNim(() => reply(200));
 r = await call({ task: 'bakeoff', passcode: 'pw', answers: ['a'] }, { ...base, MODELS: 'gemini-3.8-flash,m2' });
 assert.equal(r.json.results[0].model, 'm2');
 
+// 3h. diag probes every variant in parallel; native Gemini uses x-goog-api-key on the generateContent URL
+const seen = [];
+globalThis.fetch = async (url, init) => {
+  seen.push({ url: String(url), goog: init.headers['x-goog-api-key'], auth: init.headers.Authorization });
+  return String(url).includes(':generateContent')
+    ? new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: 'OK' }] } }] }), { status: 200 })
+    : reply(200, 'OK');
+};
+r = await call({ task: 'diag', passcode: 'pw' }, gEnv);
+assert.ok(r.json.probes.length >= 6 && r.json.probes.every(p => p.status === 200 && p.reply === 'OK'), 'all probes answer OK');
+assert.ok(seen.some(s => s.url.endsWith('gemini-3.8-flash:generateContent') && s.goog && !s.auth), 'native call shape');
+assert.equal((await call({ task: 'diag', passcode: 'wrong' }, gEnv)).status, 403, 'diag needs the passcode');
+
 // 4. one request can't fan out past 3 answers
 fakeNim(() => reply(200));
 calls = [];
