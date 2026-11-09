@@ -116,6 +116,13 @@ assert.ok(sent.some(s => s.url.endsWith('gemini-3.8-flash:generateContent') && s
 assert.ok(sent.some(s => s.url.endsWith('/v1/chat/completions') && s.body.model.startsWith('nvidia/')), 'NIM call shape');
 assert.equal((await call({ task: 'diag', passcode: 'wrong' }, gEnv)).status, 403, 'diag needs the passcode');
 
+// 3i. JSON wrapped in prose still parses; every attempt is reported (model, status) for the page
+fakeNim((_k, model) => model === 'm1' ? reply(429) : reply(200, 'Here is my evaluation: {"score":4,"fix":"Lead with the metric."} Hope that helps!'));
+r = await call({ task: 'bakeoff', passcode: 'pw', answers: ['a'] }, { ...base, MODELS: 'm1,m2' });
+assert.equal(r.json.results[0].valid_json, true, 'prose-wrapped JSON must parse');
+assert.equal(r.json.results[0].feedback.score, 4);
+assert.deepEqual(r.json.results[0].attempts.map(a => [a.model, a.status]), [['m1', 429], ['m1', 429], ['m2', 200]]);
+
 // 4. one request can't fan out past 3 answers
 fakeNim(() => reply(200));
 calls = [];

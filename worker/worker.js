@@ -5,7 +5,7 @@
 const idx = { nim: 0, gemini: 0 };
 
 // Shown on the bake-off page so you can see which code Cloudflare is actually running. Bump on every change.
-const WORKER_VERSION = '2026-11-09 · native Gemini';
+const WORKER_VERSION = '2026-11-09 · attempt trail';
 
 const CORS = (origin) => ({
   'Access-Control-Allow-Origin': origin,
@@ -80,7 +80,7 @@ export default {
       // streamed so the connection stays alive however long the models think
       return streamJSON(async () => ({ results: await Promise.all(answers.map(async (answer, i) => {
         const t0 = Date.now();
-        const { content, error, model: usedModel } = await callAI(env, models, [
+        const { content, error, model: usedModel, attempts } = await callAI(env, models, [
           { role: 'system', content: BAKEOFF_SYSTEM },
           { role: 'user', content: answer },
         ], { json: true });
@@ -91,7 +91,7 @@ export default {
           try { feedback = parseJSONReply(content); valid_json = true; }
           catch { feedback = { raw: content }; }
         }
-        return { answer_index: i, model: usedModel, latency_ms, feedback, valid_json, error: error || null };
+        return { answer_index: i, model: usedModel, latency_ms, feedback, valid_json, error: error || null, attempts };
       })) }), CORS(allowedOrigin));
     }
 
@@ -139,13 +139,14 @@ async function callAI(env, models, messages, opts = {}) {
   const callTimeout = Number(env.CALL_TIMEOUT_MS) || CALL_TIMEOUT_MS;
   const deadline = Date.now() + (Number(env.TOTAL_BUDGET_MS) || TOTAL_BUDGET_MS);
   let last = 'no_keys';
+  const attempts = []; // every try, shown on the bake-off page: model, key number, status, ms
   for (const model of models) {
     const provider = providerOf(model);
     const keys = keysFor(env, provider);
-    if (!keys.length) { last = `no_${provider}_keys`; continue; }
+    if (!keys.length) { last = `no_${provider}_keys`; attempts.push({ model, status: last, ms: 0 }); continue; }
     for (let attempt = 0; attempt < keys.length; attempt++) {
       const left = deadline - Date.now();
-      if (left < 3000) return { content: null, error: 'out_of_time', model: null };
+      if (left < 3000) return { content: null, error: 'out_of_time', model: null, attempts };
       const keyNo = (idx[provider] % keys.length) + 1;
       const key = keys[idx[provider] % keys.length];
       idx[provider] = (idx[provider] + 1) % keys.length;
@@ -155,13 +156,14 @@ async function callAI(env, models, messages, opts = {}) {
       console.log(`ai ${provider} model=${model} key#${keyNo} status=${result.status} ms=${Date.now() - t0}` +
         (result.finish ? ` finish=${result.finish}` : '') + (result.tokens ? ` tokens=${result.tokens}` : '') +
         (result.errText ? ` err="${result.errText}"` : ''));
-      if (result.content) return { content: result.content, model };
+      attempts.push({ model, key: keyNo, status: result.content ? 200 : (result.status === 200 ? 'empty_reply' : result.status === 0 ? 'timeout' : result.status), ms: Date.now() - t0, err: result.content ? undefined : result.errText });
+      if (result.content) return { content: result.content, model, attempts };
       last = result.status === 0 ? 'timeout' : `status_${result.status}`;
       const keyProblem = result.status === 401 || result.status === 403 || result.status === 429;
       if (!keyProblem) break;
     }
   }
-  return { content: null, error: last, model: null };
+  return { content: null, error: last, model: null, attempts };
 }
 
 // NVIDIA NIM (OpenAI-compatible). 2048 tokens because reasoning models spend tokens thinking first;
@@ -250,7 +252,13 @@ async function probe(env, model) {
 
 // Model replies sometimes wrap JSON in ```json fences — accept both.
 function parseJSONReply(s) {
-  return JSON.parse(stripThink(s).replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, ''));
+  const t = stripThink(s).replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  try { return JSON.parse(t); } catch {
+    // model wrapped the JSON in prose: take the outermost {...}
+    const a = t.indexOf('{'), b = t.lastIndexOf('}');
+    if (a < 0 || b <= a) throw new Error('no JSON object in reply');
+    return JSON.parse(t.slice(a, b + 1));
+  }
 }
 
 function stripThink(s) {
