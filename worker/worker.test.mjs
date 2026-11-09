@@ -33,6 +33,11 @@ fakeNim((_k, model) => model === 'fast-model' ? reply(200) : reply(429));
 r = await call({ task: 'bakeoff', passcode: 'pw', answers: ['a'] });
 assert.equal(r.json.results[0].model, 'fast-model');
 
+// 3b. MODELS priority list: 1st model rejects the request (400), 2nd is rate-limited on every key, 3rd answers
+fakeNim((_k, model) => model === 'm1' ? reply(400) : model === 'm2' ? reply(429) : reply(200));
+r = await call({ task: 'bakeoff', passcode: 'pw', answers: ['a'] }, { ...base, MODELS: 'm1, m2, m3' });
+assert.equal(r.json.results[0].model, 'm3');
+
 // 4. one request can't fan out past 3 answers
 fakeNim(() => reply(200));
 calls = [];

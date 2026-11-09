@@ -16,7 +16,7 @@ table{width:100%;border-collapse:collapse;margin-top:12px}th,td{text-align:left;
 </header>
 
 <h1>RECALL Bake-off</h1>
-<p class="muted">Compare how well each model scores PM interview answers. Run before choosing your PRIMARY_MODEL.</p>
+<p class="muted">Compare how well each model scores PM interview answers. Run before finalising the order in your MODELS setting.</p>
 
 <div class="card">
   <h2>Configuration</h2>
@@ -28,9 +28,10 @@ table{width:100%;border-collapse:collapse;margin-top:12px}th,td{text-align:left;
   </label>
   <label class="small">Model
     <select id="model">
-      <option value="nvidia/nemotron-3-super-120b-a12b" selected>nvidia/nemotron-3-super-120b-a12b (Primary)</option>
-      <option value="nvidia/llama-3.1-nemotron-70b-instruct">nvidia/llama-3.1-nemotron-70b-instruct (Baseline)</option>
-      <option value="nvidia/nemotron-3.5-lightning-30b-a3b">nvidia/nemotron-3.5-lightning-30b-a3b (Speed / Fallback)</option>
+      <option value="mistralai/mistral-large-4-1t-a52b" selected>mistralai/mistral-large-4-1t-a52b (1st choice)</option>
+      <option value="z-ai/glm-5.3-flash">z-ai/glm-5.3-flash (2nd choice)</option>
+      <option value="nvidia/nemotron-3.5-super-vl-120b-a12b">nvidia/nemotron-3.5-super-vl-120b-a12b (3rd choice)</option>
+      <option value="nvidia/nemotron-3-super-120b-a12b">nvidia/nemotron-3-super-120b-a12b (research pick, for comparison)</option>
     </select>
   </label>
 </div>

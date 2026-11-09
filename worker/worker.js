@@ -69,7 +69,7 @@ export default {
 
     // --- BAKEOFF ---
     if (task === 'bakeoff') {
-      const model = body.model || env.PRIMARY_MODEL || 'nvidia/nemotron-3-super-120b-a12b';
+      const models = modelList(env, body.model);
       // ponytail: max 3 answers per request so one call can't bypass DAILY_CAP
       const answers = Array.isArray(body.answers) ? body.answers.slice(0, 3).map(a => String(a).slice(0, 4000)) : [];
       const keys = nimKeys(env);
@@ -77,10 +77,10 @@ export default {
 
       for (let i = 0; i < answers.length; i++) {
         const t0 = Date.now();
-        const { content, error, model: usedModel } = await callNIM(keys, model, [
+        const { content, error, model: usedModel } = await callNIM(keys, models, [
           { role: 'system', content: BAKEOFF_SYSTEM },
           { role: 'user', content: answers[i] },
-        ], env);
+        ]);
         const latency_ms = Date.now() - t0;
 
         let feedback = null, valid_json = false;
@@ -88,7 +88,7 @@ export default {
           try { feedback = JSON.parse(stripThink(content)); valid_json = true; }
           catch { feedback = { raw: content }; }
         }
-        results.push({ answer_index: i, model: usedModel || model, latency_ms, feedback, valid_json, error: error || null });
+        results.push({ answer_index: i, model: usedModel, latency_ms, feedback, valid_json, error: error || null });
       }
 
       return json({ results }, 200, CORS(allowedOrigin));
@@ -101,33 +101,28 @@ export default {
   },
 };
 
-// Shared NIM call with key rotation + fallback model
-async function callNIM(keys, model, messages, env) {
-  const primary = model;
-  const FALLBACK_MODEL = env.FALLBACK_MODEL || 'nvidia/nemotron-3.5-lightning-30b-a3b';
+// Models in priority order: MODELS="a,b,c" (comma-separated), else PRIMARY_MODEL,FALLBACK_MODEL.
+// A model requested by the caller (bake-off) is tried first.
+function modelList(env, requested) {
+  const raw = env.MODELS || [env.PRIMARY_MODEL, env.FALLBACK_MODEL].filter(Boolean).join(',') || DEFAULT_MODELS;
+  const list = raw.split(',').map(s => s.trim()).filter(Boolean);
+  return requested ? [requested, ...list.filter(m => m !== requested)] : list;
+}
 
-  // Try all keys on primary model
-  for (let attempt = 0; attempt < keys.length; attempt++) {
-    const key = keys[idx % keys.length];
-    idx = (idx + 1) % keys.length;
-    const result = await nimRequest(key, primary, messages);
-    if (result.content) return { content: result.content, model: primary };
-    // only break on non-retriable errors (not 401, 403, 429, or 5xx)
-    const retriable = result.status === 429 || result.status === 401 || result.status === 403 || result.status >= 500;
-    if (!retriable) break;
-  }
-
-  // All primary keys exhausted → try FALLBACK_MODEL (same keys, one more pass)
-  if (FALLBACK_MODEL && FALLBACK_MODEL !== primary) {
+// Shared NIM call: each model in order, each across all keys.
+// Key problem (401/403/429/5xx/timeout) → next key; model problem (e.g. 400 or empty reply) → next model.
+async function callNIM(keys, models, messages) {
+  for (const model of models) {
     for (let attempt = 0; attempt < keys.length; attempt++) {
       const key = keys[idx % keys.length];
       idx = (idx + 1) % keys.length;
-      const result = await nimRequest(key, FALLBACK_MODEL, messages);
-      if (result.content) return { content: result.content, model: FALLBACK_MODEL };
+      const result = await nimRequest(key, model, messages);
+      if (result.content) return { content: result.content, model };
+      const keyProblem = result.status === 0 || result.status === 429 || result.status === 401 || result.status === 403 || result.status >= 500;
+      if (!keyProblem) break;
     }
   }
-
-  return { content: null, error: 'rate_limit', model: null };
+  return { content: null, error: 'all_models_failed', model: null };
 }
 
 async function nimRequest(key, model, messages) {
@@ -151,9 +146,7 @@ async function nimRequest(key, model, messages) {
       signal: AbortSignal.timeout(25000), // hung request → treated as timeout, next key
     });
 
-    if (resp.status === 429 || resp.status === 401 || resp.status === 403 || resp.status >= 500) {
-      return { content: null, status: resp.status };
-    }
+    if (!resp.ok) return { content: null, status: resp.status };
 
     const data = await resp.json();
     const raw = data?.choices?.[0]?.message?.content || '';
@@ -175,6 +168,8 @@ function stripThink(s) {
 function json(obj, status, headers) {
   return new Response(JSON.stringify(obj), { status, headers });
 }
+
+const DEFAULT_MODELS = 'mistralai/mistral-large-4-1t-a52b,z-ai/glm-5.3-flash,nvidia/nemotron-3.5-super-vl-120b-a12b';
 
 // Bake-off system prompt — evaluates PM interview answers
 const BAKEOFF_SYSTEM = `You are a PM interview coach evaluating an answer.

@@ -78,7 +78,8 @@ After every practice answer, the learner gets short, specific and personalised f
 | PDF resume parsed in-browser | No server storage of personal data | — Pending |
 | localStorage + JSON backup (no sync) | Avoids accounts/DB | — Pending |
 | Feedback = score + 1 fix + better line, <80 words | User wants short, actionable feedback | — Pending |
-| NIM model choice | To be decided by research (PM reasoning + instruction following + speed) | — Pending |
+| NIM model choice | User-chosen priority list (2026-11-09): mistral-large-4-1t-a52b → glm-5.3-flash → nemotron-3.5-super-vl-120b-a12b, set via Worker `MODELS` var (research pick nemotron-3-super kept in bake-off for comparison) | — Pending bake-off |
+| Hosting | Site served by Cloudflare Worker `recall` (static assets, Git-connected) at https://recall.saitejatirunagari.workers.dev instead of GitHub Pages; API proxy is a separate Worker `recall-proxy` | — Pending |
 
 ## Evolution
 

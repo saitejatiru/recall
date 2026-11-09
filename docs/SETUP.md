@@ -54,13 +54,12 @@ Add each of these as a **Variable** (plain text, no encryption needed):
 | Variable name | Value | Purpose |
 |---------------|-------|---------|
 | `ALLOWED_ORIGIN` | `https://saitejatiru.github.io` | Only this origin can call the Worker |
-| `PRIMARY_MODEL` | `nvidia/nemotron-3-super-120b-a12b` | AI model for coaching; switchable without code change |
-| `FALLBACK_MODEL` | `nvidia/nemotron-3.5-lightning-30b-a3b` | Used when all PRIMARY_MODEL keys fail |
+| `MODELS` | `mistralai/mistral-large-4-1t-a52b,z-ai/glm-5.3-flash,nvidia/nemotron-3.5-super-vl-120b-a12b` | AI models in priority order, comma-separated, no spaces needed. The Worker tries the 1st model on every key, then the 2nd, then the 3rd. |
 | `DAILY_CAP` | `300` | Maximum requests per day; adjust freely |
 
 After adding all variables and secrets, click **Save and Deploy**.
 
-**To switch model later:** Dashboard → Worker → Settings → Variables → edit `PRIMARY_MODEL` → Save → Deploy. Zero code change required.
+**To change models or their order later:** Dashboard → Worker → Settings → Variables → edit `MODELS` → Save → Deploy. Zero code change required.
 
 ---
 
@@ -151,7 +150,7 @@ The bake-off lets you compare how well each model scores PM interview answers be
 
 ### Setting your primary model
 
-After comparing results, go to Cloudflare Dashboard → Worker → Settings → Variables → edit `PRIMARY_MODEL` to the best-performing model → Save → Deploy.
+After comparing results, go to Cloudflare Dashboard → Worker → Settings → Variables → edit `MODELS` so the best-performing model comes first → Save → Deploy.
 
 ### Failover test (Method 1 — simplest)
 
