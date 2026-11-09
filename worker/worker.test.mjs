@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import worker from './worker.js';
 
-const ORIGIN = 'https://saitejatiru.github.io';
+const ORIGIN = 'https://recallnow.pages.dev';
 const base = { ALLOWED_ORIGIN: ORIGIN, PASSCODE: 'pw', NIM_KEY_1: 'k1', NIM_KEY_2: 'k2', PRIMARY_MODEL: 'nvidia/nemotron-3-super-120b-a12b', FALLBACK_MODEL: 'fast-model' };
 const req = (body, origin = ORIGIN) => new Request('https://w.dev', { method: 'POST', headers: { Origin: origin, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 const call = async (body, env = base, origin) => { const r = await worker.fetch(req(body, origin), env); return { status: r.status, json: await r.json() }; };
