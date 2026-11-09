@@ -7,13 +7,21 @@ const base = { ALLOWED_ORIGIN: ORIGIN, PASSCODE: 'pw', NIM_KEY_1: 'k1', NIM_KEY_
 const req = (body, origin = ORIGIN) => new Request('https://w.dev', { method: 'POST', headers: { Origin: origin, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 const call = async (body, env = base, origin) => { const r = await worker.fetch(req(body, origin), env); return { status: r.status, json: await r.json() }; };
 
-// fake NIM: reply per (key, model) via a lookup; records calls
+// fake providers: reply per (key, model) via a lookup; records calls. A reply carries both the
+// NIM (choices) and Gemini-native (candidates) shapes so either parser finds the content.
 let calls = [], sent = [];
-const reply = (status, content = '{"score":5}') => new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status });
+const reply = (status, content = '{"score":5}') => new Response(JSON.stringify({
+  choices: [{ message: { content } }], candidates: [{ content: { parts: [{ text: content }] } }] }), { status });
+const callInfo = (url, init) => {
+  const body = JSON.parse(init.body);
+  const key = init.headers['x-goog-api-key'] || init.headers.Authorization.slice(7);
+  const model = body.model || String(url).match(/models\/([^:]+):generateContent/)[1];
+  return { key, model, body };
+};
 const fakeNim = (table) => { globalThis.fetch = async (url, init) => {
-  const key = init.headers.Authorization.slice(7), body = JSON.parse(init.body), model = body.model;
+  const { key, model, body } = callInfo(url, init);
   calls.push(`${key}:${model}`);
-  sent.push({ url, body });
+  sent.push({ url: String(url), body, headers: init.headers });
   return table(key, model);
 }; };
 
@@ -54,21 +62,32 @@ assert.equal(r.json.results[0].model, null);
 assert.equal(r.json.results[0].error, 'status_400');
 assert.ok(calls.every(c => c.endsWith(':picked')), 'no other model may be called');
 
-// 3e. gemini-* models go to Google with GEMINI_KEY_*, without NIM-only params; fenced JSON still parses
+// 3e. gemini-* models go to Google's NATIVE API with GEMINI_KEY_*: system prompt as systemInstruction,
+// thinking "low", JSON output requested, no NIM-only params; fenced JSON still parses
 const gEnv = { ...base, GEMINI_KEY_1: 'g1', GEMINI_KEY_2: 'g2', MODELS: 'gemini-3.8-flash,nvidia/nemotron-3-super-120b-a12b' };
 fakeNim(() => reply(200, '```json\n{"score":3}\n```'));
 calls = []; sent = [];
 r = await call({ task: 'bakeoff', passcode: 'pw', answers: ['a'] }, gEnv);
 assert.equal(r.json.results[0].model, 'gemini-3.8-flash');
 assert.equal(r.json.results[0].valid_json, true, 'fenced JSON must parse');
-assert.ok(sent[0].url.startsWith('https://generativelanguage.googleapis.com/'));
-assert.ok(/^g[12]:/.test(calls[0]), 'gemini must use GEMINI_KEY_*');
-assert.equal(sent[0].body.reasoning_effort, 'low');
+assert.equal(sent[0].url, 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent');
+assert.ok(/^g[12]:/.test(calls[0]) && !sent[0].headers.Authorization, 'gemini uses GEMINI_KEY_* via x-goog-api-key');
+assert.equal(sent[0].body.generationConfig.thinkingConfig.thinkingLevel, 'low');
+assert.equal(sent[0].body.generationConfig.responseMimeType, 'application/json');
+assert.ok(sent[0].body.systemInstruction.parts[0].text.includes('PM interview coach'));
+assert.deepEqual(sent[0].body.contents, [{ role: 'user', parts: [{ text: 'a' }] }]);
 assert.equal(sent[0].body.chat_template_kwargs, undefined);
+
+// 3e2. an overloaded model (503) moves to the NEXT MODEL at once — not to the other keys of the same model
+fakeNim((_k, model) => model === 'gemini-3.8-flash' ? new Response('{"error":{"code":503,"status":"UNAVAILABLE"}}', { status: 503 }) : reply(200));
+calls = [];
+r = await call({ task: 'bakeoff', passcode: 'pw', answers: ['a'] }, { ...gEnv, MODELS: 'gemini-3.8-flash,nvidia/nemotron-3.5-super-vl-120b-a12b' });
+assert.equal(r.json.results[0].model, 'nvidia/nemotron-3.5-super-vl-120b-a12b');
+assert.equal(calls.filter(c => c.endsWith(':gemini-3.8-flash')).length, 1, 'overloaded model tried once, not once per key');
 
 // 3f. Google reports a bad key as 400 API_KEY_INVALID → treated as a key problem: next Gemini key, same model
 globalThis.fetch = async (_url, init) => {
-  const key = init.headers.Authorization.slice(7);
+  const key = init.headers['x-goog-api-key'];
   calls.push(key);
   return key === 'g1' // g1 is a revoked key, g2 works
     ? new Response('{"error":{"status":"INVALID_ARGUMENT","details":[{"reason":"API_KEY_INVALID"}]}}', { status: 400 })
@@ -86,17 +105,13 @@ fakeNim(() => reply(200));
 r = await call({ task: 'bakeoff', passcode: 'pw', answers: ['a'] }, { ...base, MODELS: 'gemini-3.8-flash,m2' });
 assert.equal(r.json.results[0].model, 'm2');
 
-// 3h. diag probes every variant in parallel; native Gemini uses x-goog-api-key on the generateContent URL
-const seen = [];
-globalThis.fetch = async (url, init) => {
-  seen.push({ url: String(url), goog: init.headers['x-goog-api-key'], auth: init.headers.Authorization });
-  return String(url).includes(':generateContent')
-    ? new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: 'OK' }] } }] }), { status: 200 })
-    : reply(200, 'OK');
-};
+// 3h. diag probes every model in parallel through the same request path the app uses
+fakeNim(() => reply(200, 'OK'));
+sent = [];
 r = await call({ task: 'diag', passcode: 'pw' }, gEnv);
-assert.ok(r.json.probes.length >= 6 && r.json.probes.every(p => p.status === 200 && p.reply === 'OK'), 'all probes answer OK');
-assert.ok(seen.some(s => s.url.endsWith('gemini-3.8-flash:generateContent') && s.goog && !s.auth), 'native call shape');
+assert.ok(r.json.probes.length >= 4 && r.json.probes.every(p => p.status === 200 && p.reply === 'OK'), 'all probes answer OK');
+assert.ok(sent.some(s => s.url.endsWith('gemini-3.8-flash:generateContent') && s.headers['x-goog-api-key']), 'native Gemini call shape');
+assert.ok(sent.some(s => s.url.endsWith('/v1/chat/completions') && s.body.model.startsWith('nvidia/')), 'NIM call shape');
 assert.equal((await call({ task: 'diag', passcode: 'wrong' }, gEnv)).status, 403, 'diag needs the passcode');
 
 // 4. one request can't fan out past 3 answers

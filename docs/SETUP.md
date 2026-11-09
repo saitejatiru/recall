@@ -54,7 +54,7 @@ Add each of these as a **Variable** (plain text, no encryption needed):
 | Variable name | Value | Purpose |
 |---------------|-------|---------|
 | `ALLOWED_ORIGIN` | `https://saitejatiru.github.io` | Only this origin can call the Worker |
-| `MODELS` | `gemini-3.8-flash,nvidia/nemotron-3.5-super-vl-120b-a12b,gemini-3.5-flash-lite,nvidia/nemotron-3-super-120b-a12b` | AI models in priority order, comma-separated. Names starting with `gemini-` go to Google (uses `GEMINI_KEY_*`); all others go to NVIDIA (uses `NIM_KEY_*`). The Worker tries the 1st model, then the next. |
+| `MODELS` | `nvidia/nemotron-3.5-super-vl-120b-a12b,gemini-3.5-flash-lite,gemini-3.8-flash` | AI models in priority order, comma-separated. Names starting with `gemini-` go to Google (uses `GEMINI_KEY_*`); all others go to NVIDIA (uses `NIM_KEY_*`). The Worker tries the 1st model, then the next. |
 
 **Gemini keys (optional):** add them as **Secrets** named `GEMINI_KEY_1` … `GEMINI_KEY_10`. Note: Google applies rate limits **per Google Cloud project, not per key** — several keys from the same project share one limit. On Google's free tier, prompts and replies may be used to improve Google's products (your answers and resume excerpts are in those prompts); enabling billing changes that.
 | `DAILY_CAP` | `300` | Maximum requests per day; adjust freely |

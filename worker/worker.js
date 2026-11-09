@@ -80,7 +80,7 @@ export default {
         const { content, error, model: usedModel } = await callAI(env, models, [
           { role: 'system', content: BAKEOFF_SYSTEM },
           { role: 'user', content: answer },
-        ]);
+        ], { json: true });
         const latency_ms = Date.now() - t0;
 
         let feedback = null, valid_json = false;
@@ -112,11 +112,13 @@ function modelList(env, requested) {
   return requested ? [requested, ...list.filter(m => m !== requested)] : list;
 }
 
-// Two providers, one OpenAI-compatible request shape. Model names starting with "gemini-"
-// go to Google with GEMINI_KEY_*; everything else goes to NVIDIA NIM with NIM_KEY_*.
+// Two providers. Model names starting with "gemini-" go to Google's NATIVE generateContent API with
+// GEMINI_KEY_*; everything else goes to NVIDIA NIM (OpenAI-compatible) with NIM_KEY_*.
+// Diagnostics 2026-11-09: when a Gemini model is overloaded, the native API answers 503 in ~3s,
+// while Google's OpenAI-compatible endpoint just hangs — so native is used for fast failover.
 const ENDPOINT = {
   nim: 'https://integrate.api.nvidia.com/v1/chat/completions',
-  gemini: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+  gemini: 'https://generativelanguage.googleapis.com/v1beta/models',
 };
 const providerOf = (model) => model.startsWith('gemini-') ? 'gemini' : 'nim';
 function keysFor(env, provider) {
@@ -125,11 +127,11 @@ function keysFor(env, provider) {
 }
 
 // Each model in order, each across its provider's keys, within one overall time budget.
-// Key problem (401/403/429/5xx) → next key. Model problem (timeout, 400, empty reply) → next model:
-// a slow model is slow on every key, so retrying it per key only multiplies the wait.
-// User prefers waiting for a thoughtful reply: up to ~5 minutes per answer (fast replies return at once).
-const CALL_TIMEOUT_MS = 290000, TOTAL_BUDGET_MS = 295000;
-async function callAI(env, models, messages) {
+// Key problem (401/403/429) → next key. Model problem (5xx overload, timeout, 400, empty reply) → next
+// model: an overloaded or hanging model is in the same state on every key.
+// User accepts up to ~5 min per answer; each try is capped at 2 min so a hung model leaves time for a backup.
+const CALL_TIMEOUT_MS = 120000, TOTAL_BUDGET_MS = 295000;
+async function callAI(env, models, messages, opts = {}) {
   // timeouts can be raised via Worker variables (used by worker/diag.mjs to measure true latency)
   const callTimeout = Number(env.CALL_TIMEOUT_MS) || CALL_TIMEOUT_MS;
   const deadline = Date.now() + (Number(env.TOTAL_BUDGET_MS) || TOTAL_BUDGET_MS);
@@ -145,41 +147,55 @@ async function callAI(env, models, messages) {
       const key = keys[idx[provider] % keys.length];
       idx[provider] = (idx[provider] + 1) % keys.length;
       const t0 = Date.now();
-      const result = await aiRequest(provider, key, model, messages, Math.min(callTimeout, left));
+      const result = await aiRequest(provider, key, model, messages, Math.min(callTimeout, left), opts);
       // log status, timing, stop reason, token use and provider error text — never keys or message bodies
       console.log(`ai ${provider} model=${model} key#${keyNo} status=${result.status} ms=${Date.now() - t0}` +
         (result.finish ? ` finish=${result.finish}` : '') + (result.tokens ? ` tokens=${result.tokens}` : '') +
         (result.errText ? ` err="${result.errText}"` : ''));
       if (result.content) return { content: result.content, model };
       last = result.status === 0 ? 'timeout' : `status_${result.status}`;
-      const keyProblem = result.status === 401 || result.status === 403 || result.status === 429 || result.status >= 500;
+      const keyProblem = result.status === 401 || result.status === 403 || result.status === 429;
       if (!keyProblem) break;
     }
   }
   return { content: null, error: last, model: null };
 }
 
-function requestBody(provider, model, messages) {
-  if (provider === 'gemini') {
-    // Gemini 3.x can't switch thinking off; "low" is the fastest level every 3.x model accepts.
-    // max_tokens includes thinking tokens, so leave headroom; the prompt keeps the answer short.
-    return { model, messages, max_tokens: 2048, reasoning_effort: 'low' };
-  }
-  // 2048 because reasoning models (GLM, Mistral) spend tokens thinking first; at 400 they could stop
-  // before writing any answer (empty reply). The prompt keeps the visible answer under 80 words.
+// NVIDIA NIM (OpenAI-compatible). 2048 tokens because reasoning models spend tokens thinking first;
+// at 400 they could stop before writing any answer. The prompt keeps the visible answer under 80 words.
+function nimBody(model, messages) {
   const isThinkingModel = model.includes('super') || model.includes('ultra');
   return isThinkingModel
     ? { model, messages, max_tokens: 2048, temperature: 1.0, top_p: 0.95, chat_template_kwargs: { enable_thinking: false } }
     : { model, messages, max_tokens: 2048, temperature: 0.5 };
 }
 
-async function aiRequest(provider, key, model, messages, timeoutMs = CALL_TIMEOUT_MS) {
+// Gemini native API. Gemini 3.x can't switch thinking off; "low" is accepted by every 3.x model.
+// maxOutputTokens includes thinking tokens, so leave headroom. opts.json → guaranteed JSON output.
+function geminiBody(messages, opts) {
+  const system = messages.filter(m => m.role === 'system').map(m => m.content).join('\n');
+  return {
+    ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}),
+    contents: messages.filter(m => m.role !== 'system')
+      .map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] })),
+    generationConfig: {
+      maxOutputTokens: 2048,
+      thinkingConfig: { thinkingLevel: 'low' },
+      ...(opts.json ? { responseMimeType: 'application/json' } : {}),
+    },
+  };
+}
+
+async function aiRequest(provider, key, model, messages, timeoutMs = CALL_TIMEOUT_MS, opts = {}) {
+  const gemini = provider === 'gemini';
   try {
-    const resp = await fetch(ENDPOINT[provider], {
+    const resp = await fetch(gemini ? `${ENDPOINT.gemini}/${model}:generateContent` : ENDPOINT.nim, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestBody(provider, model, messages)),
-      signal: AbortSignal.timeout(timeoutMs), // slow model → status 0 → next model
+      headers: gemini
+        ? { 'x-goog-api-key': key, 'Content-Type': 'application/json' }
+        : { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(gemini ? geminiBody(messages, opts) : nimBody(model, messages)),
+      signal: AbortSignal.timeout(timeoutMs), // hung model → status 0 → next model
     });
 
     if (!resp.ok) {
@@ -190,6 +206,16 @@ async function aiRequest(provider, key, model, messages, timeoutMs = CALL_TIMEOU
     }
 
     const data = await resp.json();
+    if (gemini) {
+      const c = data?.candidates?.[0] || {};
+      const u = data?.usageMetadata || {};
+      return {
+        content: stripThink((c.content?.parts || []).filter(p => !p.thought).map(p => p.text || '').join('')),
+        status: resp.status,
+        finish: c.finishReason,
+        tokens: `in:${u.promptTokenCount ?? '?'} out:${u.candidatesTokenCount ?? '?'} thinking:${u.thoughtsTokenCount ?? 0}`,
+      };
+    }
     const choice = data?.choices?.[0] || {};
     const u = data?.usage || {};
     const thinking = u.completion_tokens_details?.reasoning_tokens;
@@ -205,43 +231,18 @@ async function aiRequest(provider, key, model, messages, timeoutMs = CALL_TIMEOU
   }
 }
 
-// Diagnostics: which provider/model/request shape actually answers from this Worker, and how fast.
+// Diagnostics: a tiny "Reply OK" through the SAME aiRequest path the app uses, 45s cap per probe.
 const DIAG_PROBES = [
-  { label: 'gemini-3.8-flash · OpenAI-compat · reasoning low', provider: 'gemini', model: 'gemini-3.8-flash', extra: { reasoning_effort: 'low' } },
-  { label: 'gemini-3.8-flash · OpenAI-compat · default', provider: 'gemini', model: 'gemini-3.8-flash', extra: {} },
-  { label: 'gemini-3.8-flash · native API', provider: 'gemini', model: 'gemini-3.8-flash', native: true },
-  { label: 'gemini-3.5-flash-lite · OpenAI-compat · default', provider: 'gemini', model: 'gemini-3.5-flash-lite', extra: {} },
-  { label: 'gemini-3.5-flash-lite · native API', provider: 'gemini', model: 'gemini-3.5-flash-lite', native: true },
-  { label: 'nemotron-3.5-super-vl · NIM · thinking off', provider: 'nim', model: 'nvidia/nemotron-3.5-super-vl-120b-a12b', extra: { chat_template_kwargs: { enable_thinking: false } } },
-  { label: 'nemotron-3-super · NIM · thinking off', provider: 'nim', model: 'nvidia/nemotron-3-super-120b-a12b', extra: { chat_template_kwargs: { enable_thinking: false } } },
-  { label: 'glm-5.3-flash · NIM · default', provider: 'nim', model: 'z-ai/glm-5.3-flash', extra: {} },
+  'nvidia/nemotron-3.5-super-vl-120b-a12b', 'gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.8-flash',
+  'nvidia/nemotron-3-super-120b-a12b', 'z-ai/glm-5.3-flash',
 ];
-async function probe(env, p) {
-  const key = keysFor(env, p.provider)[0];
-  if (!key) return { label: p.label, status: 'no_key', ms: 0 };
-  const prompt = 'Reply with the single word OK.';
+async function probe(env, model) {
+  const provider = providerOf(model);
+  const key = keysFor(env, provider)[0];
+  if (!key) return { label: model, status: 'no_key', ms: 0 };
   const t0 = Date.now();
-  try {
-    const resp = p.native
-      ? await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${p.model}:generateContent`, {
-          method: 'POST', headers: { 'x-goog-api-key': key, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: 512 } }),
-          signal: AbortSignal.timeout(45000) })
-      : await fetch(ENDPOINT[p.provider], {
-          method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model: p.model, messages: [{ role: 'user', content: prompt }], max_tokens: 512, ...p.extra }),
-          signal: AbortSignal.timeout(45000) });
-    const text = await resp.text();
-    const ms = Date.now() - t0;
-    let reply = '';
-    try {
-      const d = JSON.parse(text);
-      reply = p.native ? (d.candidates?.[0]?.content?.parts || []).map(x => x.text || '').join('') : (d.choices?.[0]?.message?.content || '');
-    } catch { /* non-JSON error page */ }
-    return { label: p.label, status: resp.status, ms, reply: stripThink(reply).slice(0, 40), error: resp.ok ? '' : text.replace(/\s+/g, ' ').slice(0, 200) };
-  } catch (e) {
-    return { label: p.label, status: 0, ms: Date.now() - t0, error: `${e.name}: ${e.message}`.slice(0, 200) };
-  }
+  const r = await aiRequest(provider, key, model, [{ role: 'user', content: 'Reply with the single word OK.' }], 45000);
+  return { label: `${model} · ${provider}`, status: r.status, ms: Date.now() - t0, reply: (r.content || '').slice(0, 40), error: r.errText || (r.content ? '' : 'empty reply') };
 }
 
 // Model replies sometimes wrap JSON in ```json fences — accept both.
@@ -272,7 +273,7 @@ function streamJSON(work, headers) {
   return new Response(readable, { status: 200, headers });
 }
 
-const DEFAULT_MODELS = 'gemini-3.8-flash,nvidia/nemotron-3.5-super-vl-120b-a12b,gemini-3.5-flash-lite,nvidia/nemotron-3-super-120b-a12b';
+const DEFAULT_MODELS = 'nvidia/nemotron-3.5-super-vl-120b-a12b,gemini-3.5-flash-lite,gemini-3.8-flash';
 
 // Bake-off system prompt — evaluates PM interview answers
 const BAKEOFF_SYSTEM = `You are a PM interview coach evaluating an answer.

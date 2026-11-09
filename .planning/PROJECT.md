@@ -78,7 +78,7 @@ After every practice answer, the learner gets short, specific and personalised f
 | PDF resume parsed in-browser | No server storage of personal data | — Pending |
 | localStorage + JSON backup (no sync) | Avoids accounts/DB | — Pending |
 | Feedback = score + 1 fix + better line, <80 words | User wants short, actionable feedback | — Pending |
-| AI model choice | Bake-off 2026-11-09: mistral-large-4 timed out (>20s, dropped); nemotron-3.5-super-vl scored 3/8/3 correctly. User added Gemini (8 keys) as a second provider; Worker routes `gemini-*` to Google. Proposed `MODELS`: gemini-3.8-flash → nemotron-3.5-super-vl → gemini-3.5-flash-lite → nemotron-3-super. gemini-4-argon is paid-only (not on free tier). Gemini rate limits are per project, not per key | — Pending Gemini bake-off |
+| AI model choice | Worker diagnostics 2026-11-09 (from inside recall-proxy): nemotron-3.5-super-vl OK 0.7s; gemini-3.5-flash-lite OK ~1s; gemini-3.8-flash 503 "high demand" (native) / hangs (OpenAI-compat); nemotron-3-super 404 not on account; glm-5.3-flash and mistral-large-4 hang. Gemini now called via native generateContent (fails fast on overload, JSON mode). `MODELS`: nemotron-3.5-super-vl → gemini-3.5-flash-lite → gemini-3.8-flash. User accepts up to 5 min per answer; 2 min cap per try. gemini-4-argon is paid-only. Gemini limits are per project, not per key | — Pending bake-off on new order |
 | Hosting | Site served by Cloudflare Worker `recall` (static assets, Git-connected) at https://recall.saitejatirunagari.workers.dev instead of GitHub Pages; API proxy is a separate Worker `recall-proxy` | — Pending |
 
 ## Evolution
