@@ -77,7 +77,7 @@ Plans:
   6. Vocab sentences get an AI check with a corrected sentence; the next day's recall quizzes yesterday's fix and words
   7. Each day teaches before it tests: a micro-lesson (product concept + framework with a worked example), a guided first answer, a teach-back, Socratic follow-ups; review days mix frameworks and end with a reflection
 
-**Plans**: 2/4 plans executed
+**Plans**: 3/4 plans executed
 
 Plans:
 **Wave 1** (parallel)
@@ -87,7 +87,7 @@ Plans:
 
 **Wave 2** (blocked on Wave 1)
 
-- [ ] 03-03-PLAN.md — app.js: AI feedback on speak/case/interview, micro-lesson card, cheat cards, word chips, try-again, model answer, vocab batch AI check, weak-spot entry banner
+- [x] 03-03-PLAN.md — app.js: AI feedback on speak/case/interview, micro-lesson card, cheat cards, word chips, try-again, model answer, vocab batch AI check, weak-spot entry banner
 
 **Wave 3** (blocked on Wave 2)
 
@@ -114,5 +114,5 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Proxy & Hosting | 3/3 | Complete    | 2026-11-09 |
 | 2. Journey Shell | 3/3 | Complete    | 2026-11-10 |
-| 3. AI Coach + Weak Spots | 2/4 | In Progress|  |
+| 3. AI Coach + Weak Spots | 3/4 | In Progress|  |
 | 4. Endless Mode | 0/? | Not started | - |
