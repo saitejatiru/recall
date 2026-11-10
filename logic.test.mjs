@@ -205,4 +205,127 @@ assert.equal(LOGIC.shouldAdvanceProgrammeDay('2026-11-09', { complete: false }, 
 assert.equal(LOGIC.shouldAdvanceProgrammeDay('2026-11-10', { complete: true }, '2026-11-10'), false,
   'shouldAdvanceProgrammeDay: dayStartedDate already updated to today → false');
 
+// ── migrate v2→v3 and v3 no-op (Phase 3) ────────────────────────────────────
+
+// v2 data → _version becomes 3, existing keys preserved
+var v2data = { _version: 2, day: 5, weakspots: ['a'] };
+var migrated3 = LOGIC.migrate(v2data);
+assert.equal(migrated3._version, 3, 'migrate: v2 → _version = 3');
+assert.deepEqual(migrated3.weakspots, ['a'], 'migrate: v2 → weakspots preserved');
+assert.equal(migrated3.day, 5, 'migrate: v2 → day preserved');
+
+// v3 data → no-op (idempotent)
+var v3data = { _version: 3, day: 7, vocab: { jtbd: { box: 3 } } };
+var migrated3noop = LOGIC.migrate(v3data);
+assert.equal(migrated3noop._version, 3, 'migrate: v3 is no-op');
+assert.deepEqual(migrated3noop.vocab, { jtbd: { box: 3 } }, 'migrate: v3 no-op preserves vocab');
+
+// ── buildCoachPayload ─────────────────────────────────────────────────────
+
+var answerPayload = LOGIC.buildCoachPayload('answer', {
+  question: 'Q', framework: 'STAR', answer: 'A', attempt: 1,
+  todayWords: [], learnedWords: [], resumeExcerpt: 'R', stepType: 'speak'
+});
+assert.equal(answerPayload.task, 'coach', 'buildCoachPayload: task = coach');
+assert.equal(answerPayload.mode, 'answer', 'buildCoachPayload: mode = answer');
+assert.equal(answerPayload.resumeExcerpt, 'R', 'buildCoachPayload: resumeExcerpt passed through');
+assert.equal(answerPayload.question, 'Q', 'buildCoachPayload: question present');
+assert.equal(answerPayload.framework, 'STAR', 'buildCoachPayload: framework present');
+
+// resumeExcerpt sliced to 1500 chars
+var longResume = 'x'.repeat(2000);
+var slicedPayload = LOGIC.buildCoachPayload('answer', { question: 'Q', framework: 'STAR', answer: 'A', attempt: 1, todayWords: [], learnedWords: [], resumeExcerpt: longResume });
+assert.equal(slicedPayload.resumeExcerpt.length, 1500, 'buildCoachPayload: resumeExcerpt capped at 1500');
+
+// model mode omits answer/attempt
+var modelPayload = LOGIC.buildCoachPayload('model', { question: 'Q', framework: 'STAR', resumeExcerpt: 'R' });
+assert.equal(modelPayload.task, 'coach', 'buildCoachPayload model: task = coach');
+assert.equal(modelPayload.mode, 'model', 'buildCoachPayload model: mode = model');
+assert.equal(modelPayload.answer, undefined, 'buildCoachPayload model: no answer field');
+
+// teachback mode uses concept + answer
+var teachPayload = LOGIC.buildCoachPayload('teachback', { concept: 'JTBD', answer: 'The job is the goal' });
+assert.equal(teachPayload.concept, 'JTBD', 'buildCoachPayload teachback: concept present');
+
+// ── validateCoachResponse ─────────────────────────────────────────────────
+
+assert.equal(LOGIC.validateCoachResponse({ score: 7, fix: 'x', betterLine: 'y', tags: [] }), true, 'validateCoachResponse: valid response → true');
+assert.equal(LOGIC.validateCoachResponse({ score: 10, fix: 'do this', betterLine: 'say this', tags: ['no-metric'] }), true, 'validateCoachResponse: score 10 → true');
+assert.equal(LOGIC.validateCoachResponse({ score: 11, fix: 'x', betterLine: 'y', tags: [] }), false, 'validateCoachResponse: score 11 → false (out of range)');
+assert.equal(LOGIC.validateCoachResponse({ score: 0, fix: 'x', betterLine: 'y', tags: [] }), false, 'validateCoachResponse: score 0 → false');
+assert.equal(LOGIC.validateCoachResponse({ score: 7.5, fix: 'x', betterLine: 'y', tags: [] }), false, 'validateCoachResponse: float score → false');
+assert.equal(LOGIC.validateCoachResponse({ score: 7, fix: '', betterLine: 'y', tags: [] }), false, 'validateCoachResponse: empty fix → false');
+assert.equal(LOGIC.validateCoachResponse({ score: 7, fix: 'x', betterLine: 'y' }), false, 'validateCoachResponse: missing tags → false');
+assert.equal(LOGIC.validateCoachResponse(null), false, 'validateCoachResponse: null → false');
+
+// ── computeTopWeakSpots ───────────────────────────────────────────────────
+
+// Build 7 days of mock data: no-metric 5×, rambling 3×, generic 1×
+var mockData = {};
+// Day 1-5: no-metric appears in speak, case (and sometimes interview) → 5 total
+mockData['d-2026-11-10'] = { speak: { aiFeedback: { tags: ['no-metric'] } } };
+mockData['d-2026-11-09'] = { speak: { aiFeedback: { tags: ['no-metric', 'rambling'] } } };
+mockData['d-2026-11-08'] = { case:  { aiFeedback: { tags: ['no-metric', 'rambling'] } } };
+mockData['d-2026-11-07'] = { interview: { aiFeedback: { tags: ['no-metric', 'rambling'] } } };
+mockData['d-2026-11-06'] = { speak: { aiFeedback: { tags: ['no-metric', 'generic'] } } };
+// days 5 and 6 (back from today): only have no-data entries
+// totals: no-metric: 5, rambling: 3, generic: 1
+
+var topSpots = LOGIC.computeTopWeakSpots(mockData, '2026-11-10', 7);
+assert.deepEqual(topSpots, ['no-metric', 'rambling', 'generic'], 'computeTopWeakSpots: correct order');
+
+// empty data → []
+assert.deepEqual(LOGIC.computeTopWeakSpots({}, '2026-11-10', 7), [], 'computeTopWeakSpots: empty data → []');
+
+// default days=7 parameter
+var topSpotsDefault = LOGIC.computeTopWeakSpots(mockData, '2026-11-10');
+assert.equal(topSpotsDefault[0], 'no-metric', 'computeTopWeakSpots: default days works');
+
+// ── selectByWeakSpot ──────────────────────────────────────────────────────
+
+var items = [
+  { id: 'a', targetsTags: ['no-metric'] },
+  { id: 'b', targetsTags: ['rambling'] },
+  { id: 'c', targetsTags: ['generic'] }
+];
+
+var selected = LOGIC.selectByWeakSpot(items, ['no-metric']);
+assert.equal(selected.id, 'a', 'selectByWeakSpot: picks first item with matching tag');
+
+var selectedSecond = LOGIC.selectByWeakSpot(items, ['rambling']);
+assert.equal(selectedSecond.id, 'b', 'selectByWeakSpot: picks item matching rambling');
+
+// no overlap → fallback to items[0]
+var selectedFallback = LOGIC.selectByWeakSpot(items, []);
+assert.equal(selectedFallback.id, 'a', 'selectByWeakSpot: no topTags → fallback to items[0]');
+
+var selectedNoMatch = LOGIC.selectByWeakSpot(items, ['jargon-misuse']);
+assert.equal(selectedNoMatch.id, 'a', 'selectByWeakSpot: no match → fallback to items[0]');
+
+// items without targetsTags → fallback
+var plainItems = [{ id: 'x' }, { id: 'y' }];
+var selectedPlain = LOGIC.selectByWeakSpot(plainItems, ['no-metric']);
+assert.equal(selectedPlain.id, 'x', 'selectByWeakSpot: items without targetsTags → fallback');
+
+// ── detectWordChips ───────────────────────────────────────────────────────
+
+var todayWords = [
+  { id: 'jtbd', term: 'Jobs-to-be-done (JTBD)' },
+  { id: 'northStarMetric', term: 'North Star Metric (NSM)' },
+  { id: 'retentionRate', term: 'Retention rate' }
+];
+
+var chips1 = LOGIC.detectWordChips('using the jobs-to-be-done framework here', todayWords);
+assert.equal(chips1.has('jtbd'), true, 'detectWordChips: finds jtbd in text');
+assert.equal(chips1.has('northStarMetric'), false, 'detectWordChips: does not find NSM');
+
+var chips2 = LOGIC.detectWordChips('I tracked north star metric and retention rate', todayWords);
+assert.equal(chips2.has('northStarMetric'), true, 'detectWordChips: finds north star metric');
+assert.equal(chips2.has('retentionRate'), true, 'detectWordChips: finds retention rate');
+assert.equal(chips2.has('jtbd'), false, 'detectWordChips: jtbd not in second text');
+
+// empty text → empty set
+var chipsEmpty = LOGIC.detectWordChips('', todayWords);
+assert.equal(chipsEmpty.size, 0, 'detectWordChips: empty text → empty set');
+
 console.log('logic self-check: all passed');
