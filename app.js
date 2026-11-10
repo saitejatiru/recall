@@ -16,9 +16,9 @@ function save() {
   }
 }
 
-// v1 → v2 migration: backup once, then migrate
-if (typeof LOGIC !== 'undefined' && !( data._version >= 2)) {
-  try { if (_rawData && localStorage.getItem('recallData_v1_backup') === null) localStorage.setItem('recallData_v1_backup', _rawData); } catch(e) {}
+// v1/v2 → v3 migration: backup genuine v1 (no _version) once, then migrate to current version
+if (typeof LOGIC !== 'undefined' && !(data._version >= 3)) {
+  try { if (_rawData && !data._version && localStorage.getItem('recallData_v1_backup') === null) localStorage.setItem('recallData_v1_backup', _rawData); } catch(e) {}
   LOGIC.migrate(data);
   save();
 }
@@ -439,6 +439,14 @@ function renderEntry(dayData) {
   html += '<div class="card" style="margin-top:16px">';
   html += '<h1>Day ' + day() + ' / 30</h1>';
   html += renderGrid();
+  // Weak-spot banner (WEAK-02)
+  var weakTags = LOGIC.computeTopWeakSpots(data, todayStr);
+  if (weakTags.length > 0) {
+    html += '<div class="card" style="margin:12px 0;border-color:var(--accent)">';
+    html += '<h3 style="margin:0 0 6px">Today\'s focus</h3>';
+    html += '<p class="small">Your top weak spots (last 7 days): ' + weakTags.map(esc).join(', ') + '. Today\'s case and interview question target these.</p>';
+    html += '</div>';
+  }
   if (dayData && step > 0 && !dayData.complete) {
     html += '<button class="btn primary" data-action="journey-start" style="width:100%;margin-top:16px">Continue from Step ' + step + ' (' + esc(STEP_LABELS[step - 1] || '') + ')</button>';
   } else {
@@ -475,6 +483,11 @@ function renderSummary(dayData) {
   }
   html += '</div>';
 
+  var weakSummary = LOGIC.computeTopWeakSpots(data, todayStr);
+  html += '<div class="card">';
+  html += '<p><strong>Top weak spots:</strong> ' + (weakSummary.length ? weakSummary.map(esc).join(', ') : 'No weak spots yet') + '</p>';
+  html += '</div>';
+
   var skipped = [];
   ['recall','speak','case','interview'].forEach(function(s) {
     if (!dayData[s]) skipped.push(s);
@@ -499,6 +512,109 @@ function findTermById(id) {
     }
   }
   return null;
+}
+
+// ── Helper: today's 5 vocab terms ────────────────────────────────────────
+function todayTerms() {
+  var dayIdx = Math.max(0, Math.min(day() - 1, VOCAB.length - 1));
+  return VOCAB[dayIdx] || [];
+}
+
+// ── Helper: word IDs the user has reviewed at least once (box >= 2) ───────
+function learnedWordIds() {
+  return Object.keys(data.vocab || {}).filter(function(id) {
+    return (data.vocab[id].box || 1) >= 2;
+  });
+}
+
+// ── Helper: framework cheat card details element ──────────────────────────
+function renderCheatCard(framework, dayNum) {
+  var cc = typeof CHEAT_CARDS !== 'undefined' && CHEAT_CARDS[framework];
+  if (!cc) return '';
+  var open = dayNum <= 10 ? ' open' : '';
+  var label = dayNum >= 21 ? 'Show framework hint' : 'Framework: ' + esc(framework);
+  return '<details' + open + ' style="margin:8px 0"><summary class="small" style="cursor:pointer">' + label + '</summary>' +
+    '<div style="background:var(--panel2);border-radius:8px;padding:10px;margin-top:4px">' +
+    '<p class="small" style="margin:4px 0">' + esc(cc.l1) + '</p>' +
+    '<p class="small" style="margin:4px 0">' + esc(cc.l2) + '</p>' +
+    '<p class="small" style="margin:4px 0">' + esc(cc.l3) + '</p>' +
+    '</div></details>';
+}
+
+// ── Helper: word chips row (5 terms) ──────────────────────────────────────
+function renderWordChips() {
+  var terms = todayTerms();
+  if (!terms.length) return '';
+  var html = '<div class="row" id="wordChips" style="flex-wrap:wrap;gap:6px;margin:8px 0">';
+  terms.forEach(function(t) {
+    html += '<span class="chip tag" data-term-id="' + esc(t.id) + '" title="' + esc(t.term) + '">' + esc(t.term.slice(0, 20)) + '</span>';
+  });
+  html += '</div>';
+  return html;
+}
+
+// ── AI coach: show self-check fallback when AI unavailable ────────────────
+function showSelfCheckFallback(stepId) {
+  var af = document.getElementById('aiFeedback');
+  if (!af) return;
+  af.innerHTML = '<p class="small muted" style="margin-top:8px">AI unavailable — use the self-check below.</p>';
+  af.classList.remove('hidden');
+}
+
+// ── AI coach: populate #aiFeedback with score/fix/betterLine ─────────────
+function renderCoachFeedback(stepId, res) {
+  var af = document.getElementById('aiFeedback');
+  if (!af) return;
+  if (!res || !LOGIC.validateCoachResponse(res)) { showSelfCheckFallback(stepId); return; }
+  // Store aiFeedback
+  var vd = data['d-' + todayStr];
+  if (!vd) return;
+  if (!vd[stepId]) vd[stepId] = {};
+  vd[stepId].aiFeedback = { score: res.score, fix: res.fix, tags: res.tags || [], wordsUsed: res.wordsUsed || [] };
+  save();
+  var html = '<div style="margin-top:12px">';
+  html += '<div class="row" style="margin-bottom:8px">';
+  html += '<span class="tag" style="background:var(--accent);color:#101827;border-color:var(--accent)">' + esc(String(res.score)) + '/10</span>';
+  if (res.landed) html += '<span class="small muted">&nbsp;' + esc(res.landed) + '</span>';
+  html += '</div>';
+  html += '<p><strong>One fix:</strong> ' + esc(res.fix) + '</p>';
+  html += '<div style="border-left:4px solid var(--accent);background:var(--panel2);padding:12px 16px;border-radius:0 8px 8px 0;margin:8px 0">' + esc(res.betterLine) + '</div>';
+  html += '<div class="row" style="margin-top:8px">';
+  html += '<button class="btn" data-action="try-again" data-step-id="' + esc(stepId) + '">Try again with the fix</button>';
+  html += '<button class="btn" data-action="show-model-answer" data-step-id="' + esc(stepId) + '">Show model answer</button>';
+  html += '</div>';
+  html += '</div>';
+  af.innerHTML = html;
+  af.classList.remove('hidden');
+}
+
+// ── AI coach: batch-check vocab sentences (fire-and-forget) ──────────────
+function runVocabAICheck() {
+  var vd = data['d-' + todayStr];
+  if (!vd || !vd.vocab || !vd.vocab.sentences) return;
+  var sentences = [];
+  Object.keys(vd.vocab.sentences).forEach(function(id) {
+    var term = findTermById(id);
+    if (!term) return;
+    sentences.push({ id: id, term: term.term, sentence: vd.vocab.sentences[id] });
+  });
+  if (!sentences.length) return;
+  var payload = LOGIC.buildCoachPayload('vocab', { sentences: sentences });
+  workerCall('coach', payload).then(function(res) {
+    if (!res || !Array.isArray(res.results)) return;
+    res.results.forEach(function(r) {
+      var fb = document.getElementById('fb-' + r.id);
+      if (fb) {
+        fb.innerHTML = r.verdict === 'correct'
+          ? '<span style="color:var(--green);font-weight:700">&#10003; Correct (AI verified)</span>'
+          : '<span class="muted small">' + esc(r.correctedSentence || 'Review needed') + '</span>';
+      }
+      if (data.vocab && data.vocab[r.id]) {
+        data.vocab[r.id] = LOGIC.advanceLeitner(data.vocab[r.id], r.verdict, todayStr);
+        save();
+      }
+    });
+  }).catch(function() { /* fire-and-forget: vocab step completion not gated on AI */ });
 }
 
 // ── Render: vocab step ────────────────────────────────────────────────────
@@ -528,6 +644,22 @@ function renderVocab(container) {
   save();
 
   var html = '';
+
+  // Micro-lesson card (LEARN-07) — skip on review days (handled by 03-04)
+  if (typeof LESSONS !== 'undefined') {
+    var lessonIdx = Math.max(0, Math.min(day() - 1, LESSONS.length - 1));
+    var lesson = LESSONS[lessonIdx];
+    if (lesson && !lesson.isReview) {
+      html += '<div class="card" style="margin-bottom:12px">';
+      html += '<h2>' + esc(lesson.concept) + '</h2>';
+      html += '<p>' + esc(lesson.detail) + '</p>';
+      html += '<div style="border-left:4px solid var(--accent);background:var(--panel2);padding:12px 16px;border-radius:0 8px 8px 0;margin:8px 0">' + esc(lesson.workedExample) + '</div>';
+      if (day() <= 10 && lesson.guidedStep) {
+        html += '<p class="small muted">' + esc(lesson.guidedStep) + '</p>';
+      }
+      html += '</div>';
+    }
+  }
 
   if (reviewIds.length > 0) {
     html += '<div class="card" style="margin-bottom:8px">';
@@ -624,12 +756,14 @@ function renderSpeakStep(container) {
   accumulated = ''; fromSpeech = false;
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   var qIdx = (day() - 1) % QUESTIONS.length;
-  var questionText = QUESTIONS[qIdx];
+  var q = QUESTIONS[qIdx]; // {text, framework}
 
   var html = '<div class="card">';
   html += '<div class="row"><span class="tag">~5 min</span></div>';
   html += '<h2>Spoken answer</h2>';
-  html += '<p>' + esc(questionText) + '</p>';
+  html += '<p>' + esc(q.text) + '</p>';
+  html += renderCheatCard(q.framework, day());
+  html += renderWordChips();
 
   if (!SR) {
     html += '<p class="small muted">Microphone not available in this browser — type your answer below.</p>';
@@ -667,13 +801,15 @@ function renderCaseStep(container) {
   accumulated = ''; fromSpeech = false;
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   var cIdx = (day() - 1) % CASES.length;
-  var c = CASES[cIdx];
+  var c = CASES[cIdx]; // {title, scenario, reasoning, framework, targetsTags}
 
   var html = '<div class="card">';
   html += '<div class="row"><span class="tag">~7 min</span></div>';
   html += '<h2>Product case</h2>';
-  html += '<h3>' + esc(c[0]) + '</h3>';
-  html += '<p>' + esc(c[1]) + '</p>';
+  html += '<h3>' + esc(c.title) + '</h3>';
+  html += '<p>' + esc(c.scenario) + '</p>';
+  html += renderCheatCard(c.framework, day());
+  html += renderWordChips();
 
   if (!SR) {
     html += '<p class="small muted">Microphone not available in this browser — type your answer below.</p>';
@@ -686,7 +822,7 @@ function renderCaseStep(container) {
   html += '<div id="fillerChip" class="tag" style="display:none;margin-top:8px"></div>';
 
   html += '<button class="btn" data-action="case-reasoning" style="margin-top:8px">Show suggested reasoning</button>';
-  html += '<div id="caseReasoning" style="display:none;margin-top:8px;padding:12px;background:var(--panel2);border-radius:10px"><p>' + esc(c[2]) + '</p></div>';
+  html += '<div id="caseReasoning" style="display:none;margin-top:8px;padding:12px;background:var(--panel2);border-radius:10px"><p>' + esc(c.reasoning) + '</p></div>';
   html += '</div>';
   html += '<button class="btn primary" data-action="case-submit" disabled style="width:100%;margin-top:8px">Submit answer</button>';
   container.innerHTML = html;
@@ -699,14 +835,15 @@ function renderInterviewStep(container) {
   firstAnswerText = ''; firstFromSpeech = false; firstFillerCount = 0;
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   var qIdx = (day() - 1) % INTERVIEW.length;
-  var q = INTERVIEW[qIdx];
+  var q = INTERVIEW[qIdx]; // {category, question, framework, targetsTags}
 
   var html = '<div class="card" id="interviewCard">';
   html += '<div class="row"><span class="tag">~5 min</span></div>';
   html += '<h2>Unexpected question</h2>';
+  html += renderCheatCard(q.framework, day());
   html += '<p class="muted">Take a breath. Reveal the question when you\'re ready.</p>';
   html += '<button class="btn primary" data-action="interview-reveal" style="width:100%;margin-top:12px">Reveal question</button>';
-  html += '<div id="questionText" style="display:none;margin-top:12px"><p><strong>' + esc(q[1]) + '</strong></p></div>';
+  html += '<div id="questionText" style="display:none;margin-top:12px"><p><strong>' + esc(q.question) + '</strong></p></div>';
 
   // Think phase (hidden until reveal)
   html += '<div id="thinkPhase" style="display:none">';
@@ -723,6 +860,7 @@ function renderInterviewStep(container) {
   } else {
     html += '<p class="small muted">Microphone not available in this browser — type your answer below.</p>';
   }
+  html += renderWordChips();
   html += '<textarea id="transcript" aria-label="Your answer transcript" placeholder="' + (SR ? 'Edit your transcript here' : 'Type your answer here') + '" style="' + (SR ? 'display:none;' : '') + 'margin-top:12px;min-height:120px"></textarea>';
   html += '<div id="fillerChip" class="tag" style="display:none;margin-top:8px"></div>';
   html += '</div>';
@@ -820,6 +958,7 @@ document.addEventListener('click', function(e) {
     stop();
     if (stepName && STEPS[stepName]) STEPS[stepName].submit();
     if (stepName) saveStepAnswer(stepName, dayData[stepName] || {});
+    if (stepName === 'vocab') runVocabAICheck(); // fire-and-forget
     goToStep(currentStep + 1);
     return;
   }
@@ -935,8 +1074,10 @@ document.addEventListener('click', function(e) {
     if (!ta3 || !ta3.value.trim()) return;
     var text3 = ta3.value.trim();
     fromSpeech = !!(accumulated.trim());
+    var spQ = QUESTIONS[(day()-1) % QUESTIONS.length]; // {text, framework}
     saveStepAnswer('speak', {
-      question: QUESTIONS[(day()-1) % QUESTIONS.length],
+      question: spQ.text,
+      framework: spQ.framework,
       transcript: text3,
       fromSpeech: fromSpeech,
       fillerCount: fromSpeech ? LOGIC.countFillers(accumulated) : 0,
@@ -944,6 +1085,26 @@ document.addEventListener('click', function(e) {
     });
     stop();
     answerSaved(el); // ponytail: Submit saves; only "Done — move on" advances
+    // Fire AI coaching async (non-blocking — user can proceed immediately)
+    var spPayload = LOGIC.buildCoachPayload('answer', {
+      question: spQ.text,
+      framework: spQ.framework,
+      answer: text3,
+      attempt: 1,
+      todayWords: todayTerms(),
+      learnedWords: learnedWordIds(),
+      resumeExcerpt: (localStorage.getItem('recallResume') || '').slice(0,1500),
+      stepType: 'speak'
+    });
+    var spTh = document.getElementById('thinking');
+    if (spTh) spTh.classList.remove('hidden');
+    workerCall('coach', spPayload).then(function(res) {
+      if (spTh) spTh.classList.add('hidden');
+      renderCoachFeedback('speak', res);
+    }).catch(function() {
+      if (spTh) spTh.classList.add('hidden');
+      showSelfCheckFallback('speak');
+    });
     return;
   }
 
@@ -962,16 +1123,41 @@ document.addEventListener('click', function(e) {
     var ta4 = document.getElementById('transcript');
     if (!ta4 || !ta4.value.trim()) return;
     var cIdx2 = (day()-1) % CASES.length;
+    var cObj = CASES[cIdx2]; // {title, scenario, reasoning, framework, targetsTags}
     fromSpeech = !!(accumulated.trim());
+    var caseText = ta4.value.trim();
+    var caseQ = cObj.title + ': ' + cObj.scenario;
     saveStepAnswer('case', {
       caseIndex: cIdx2,
-      text: ta4.value.trim(),
+      question: caseQ,
+      framework: cObj.framework,
+      text: caseText,
       fromSpeech: fromSpeech,
       fillerCount: fromSpeech ? LOGIC.countFillers(accumulated) : 0,
       rubricChecked: []
     });
     stop();
     answerSaved(el); // ponytail: Submit saves; only "Done — move on" advances
+    // Fire AI coaching async (non-blocking)
+    var caPayload = LOGIC.buildCoachPayload('answer', {
+      question: caseQ,
+      framework: cObj.framework,
+      answer: caseText,
+      attempt: 1,
+      todayWords: todayTerms(),
+      learnedWords: learnedWordIds(),
+      resumeExcerpt: (localStorage.getItem('recallResume') || '').slice(0,1500),
+      stepType: 'case'
+    });
+    var caTh = document.getElementById('thinking');
+    if (caTh) caTh.classList.remove('hidden');
+    workerCall('coach', caPayload).then(function(res) {
+      if (caTh) caTh.classList.add('hidden');
+      renderCoachFeedback('case', res);
+    }).catch(function() {
+      if (caTh) caTh.classList.add('hidden');
+      showSelfCheckFallback('case');
+    });
     return;
   }
 
@@ -1025,10 +1211,10 @@ document.addEventListener('click', function(e) {
 
     // Render follow-up card
     var qIdx3 = (day()-1) % INTERVIEW.length;
-    var q3 = INTERVIEW[qIdx3];
-    var followup = FOLLOWUPS[q3[0]] || 'What would you do differently next time?';
+    var q3 = INTERVIEW[qIdx3]; // {category, question, framework, targetsTags}
+    var followup = FOLLOWUPS[q3.category] || 'What would you do differently next time?';
     var fuHtml = '<div class="card" style="margin-top:12px"><h3>Follow-up</h3>';
-    fuHtml += '<p>' + esc(followup) + '</p>';
+    fuHtml += '<p id="followupQuestion">' + esc(followup) + '</p>';
     fuHtml += '<textarea id="followupText" placeholder="Your answer…" aria-label="Follow-up answer" style="margin-top:8px;min-height:120px"></textarea>';
     fuHtml += '</div>';
     fuHtml += '<button class="btn primary" data-action="interview-final-submit" disabled style="width:100%;margin-top:8px">Submit answer</button>';
@@ -1042,16 +1228,110 @@ document.addEventListener('click', function(e) {
     var fuEl = document.getElementById('followupText');
     if (!fuEl || !fuEl.value.trim()) return;
     var qIdx4 = (day()-1) % INTERVIEW.length;
+    var ifQ = INTERVIEW[qIdx4]; // {category, question, framework, targetsTags}
+    var fuText = fuEl.value.trim();
     saveStepAnswer('interview', {
       questionIndex: qIdx4,
+      question: ifQ.question,
+      framework: ifQ.framework,
       text: firstAnswerText,
-      followupText: fuEl.value.trim(),
+      followupText: fuText,
       fromSpeech: firstFromSpeech,
       fillerCount: firstFillerCount,
       rubricChecked: []
     });
     stop();
     answerSaved(el); // ponytail: Submit saves; only "Done — move on" advances
+    // Fire AI coaching async (non-blocking)
+    var ifPayload = LOGIC.buildCoachPayload('answer', {
+      question: ifQ.question,
+      framework: ifQ.framework,
+      answer: firstAnswerText,
+      attempt: 1,
+      todayWords: todayTerms(),
+      learnedWords: learnedWordIds(),
+      resumeExcerpt: (localStorage.getItem('recallResume') || '').slice(0,1500),
+      stepType: 'interview'
+    });
+    var ifTh = document.getElementById('thinking');
+    if (ifTh) ifTh.classList.remove('hidden');
+    workerCall('coach', ifPayload).then(function(res) {
+      if (ifTh) ifTh.classList.add('hidden');
+      renderCoachFeedback('interview', res);
+      if (res && res.socratiQ) {
+        var fqEl = document.getElementById('followupQuestion');
+        if (fqEl) fqEl.textContent = res.socratiQ; // safe: textContent, no innerHTML
+      }
+    }).catch(function() {
+      if (ifTh) ifTh.classList.add('hidden');
+      showSelfCheckFallback('interview');
+    });
+    return;
+  }
+
+  // ── Try-again (LEARN-03) ──
+  if (action === 'try-again') {
+    var taStepId = el.dataset.stepId;
+    el.style.display = 'none';
+    var vdTry = data['d-' + todayStr];
+    var tryFix = (vdTry && vdTry[taStepId] && vdTry[taStepId].aiFeedback && vdTry[taStepId].aiFeedback.fix) || '';
+    var retryDiv = '<div id="retryArea" style="margin-top:12px">';
+    retryDiv += '<textarea id="retryTranscript" placeholder="Try incorporating: ' + esc(tryFix) + '" aria-label="Retry answer" style="min-height:120px"></textarea>';
+    retryDiv += '<button class="btn primary" data-action="retry-submit" data-step-id="' + esc(taStepId) + '" disabled style="width:100%;margin-top:8px">Submit retry</button>';
+    retryDiv += '</div>';
+    el.insertAdjacentHTML('afterend', retryDiv);
+    return;
+  }
+
+  if (action === 'retry-submit') {
+    var rsStepId = el.dataset.stepId;
+    var rtEl = document.getElementById('retryTranscript');
+    if (!rtEl || !rtEl.value.trim()) return;
+    var retryText = rtEl.value.trim();
+    var vdRetry = data['d-' + todayStr];
+    if (!vdRetry || !vdRetry[rsStepId]) return;
+    var sd = vdRetry[rsStepId];
+    var retryPayload = LOGIC.buildCoachPayload('retry', {
+      question: sd.question || '',
+      framework: sd.framework || '',
+      answer: retryText,
+      attempt1Text: sd.transcript || sd.text || '',
+      todayWords: todayTerms(),
+      resumeExcerpt: (localStorage.getItem('recallResume') || '').slice(0,1500)
+    });
+    el.disabled = true; el.textContent = 'Checking…';
+    workerCall('coach', retryPayload).then(function(res) {
+      var rHtml = '<div style="margin-top:8px;padding:12px;background:var(--panel2);border-radius:10px">';
+      rHtml += '<p><strong>' + ((res && res.improved) ? '&#10003; Improved' : '&#8594; Keep working on it') + '</strong></p>';
+      if (res && res.fix) rHtml += '<p class="small">' + esc(res.fix) + '</p>';
+      if (res && res.betterLine) rHtml += '<div style="border-left:4px solid var(--accent);padding:8px 12px;margin-top:8px">' + esc(res.betterLine) + '</div>';
+      rHtml += '</div>';
+      var ra = document.getElementById('retryArea');
+      if (ra) ra.insertAdjacentHTML('beforeend', rHtml);
+      el.remove();
+    }).catch(function() { el.disabled = false; el.textContent = 'Submit retry'; });
+    return;
+  }
+
+  // ── Show model answer (LEARN-04) ──
+  if (action === 'show-model-answer') {
+    var smaStepId = el.dataset.stepId;
+    var vdModel = data['d-' + todayStr];
+    if (!vdModel || !vdModel[smaStepId]) return;
+    var smd = vdModel[smaStepId];
+    el.disabled = true; el.textContent = 'Loading…';
+    var modelPayload = LOGIC.buildCoachPayload('model', {
+      question: smd.question || '',
+      framework: smd.framework || '',
+      resumeExcerpt: (localStorage.getItem('recallResume') || '').slice(0,1500)
+    });
+    workerCall('coach', modelPayload).then(function(res) {
+      var mHtml = '<div style="margin-top:8px;border-left:4px solid var(--green);background:var(--panel2);padding:12px 16px;border-radius:0 8px 8px 0">';
+      mHtml += (res && res.modelAnswer) ? esc(res.modelAnswer) : '<span class="muted small">Could not generate model answer</span>';
+      mHtml += '</div>';
+      el.insertAdjacentHTML('afterend', mHtml);
+      el.remove();
+    }).catch(function() { el.disabled = false; el.textContent = 'Show model answer'; });
     return;
   }
 
@@ -1106,9 +1386,23 @@ document.addEventListener('input', function(e) {
     return;
   }
 
-  // Transcript textarea → enable step submit
+  // Transcript textarea → enable step submit + update word chips
   if (id === 'transcript') {
     enableSubmitIfReady();
+    var wc = document.getElementById('wordChips');
+    if (wc) {
+      var active = LOGIC.detectWordChips(val, todayTerms());
+      wc.querySelectorAll('[data-term-id]').forEach(function(span) {
+        span.classList.toggle('chip-active', active.has(span.dataset.termId));
+      });
+    }
+    return;
+  }
+
+  // Retry textarea → enable retry-submit button
+  if (id === 'retryTranscript') {
+    var rsBtn = document.querySelector('[data-action="retry-submit"]');
+    if (rsBtn) rsBtn.disabled = !val.trim();
     return;
   }
 
