@@ -826,7 +826,18 @@ function renderCaseStep(container) {
   stop();
   accumulated = ''; fromSpeech = false;
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  var cIdx = (day() - 1) % CASES.length;
+  // Stable weak-spot selection (WEAK-03): store chosen index so reload picks same case
+  var vdC = data['d-' + todayStr] || {};
+  var cIdx;
+  if (vdC.caseIdx !== undefined) {
+    cIdx = vdC.caseIdx;
+  } else {
+    var topTagsC = LOGIC.computeTopWeakSpots(data, todayStr);
+    var selC = LOGIC.selectByWeakSpot(CASES, topTagsC);
+    cIdx = selC ? CASES.indexOf(selC) : -1;
+    if (cIdx < 0) cIdx = (day()-1) % CASES.length;
+    if (data['d-' + todayStr]) { data['d-' + todayStr].caseIdx = cIdx; save(); }
+  }
   var c = CASES[cIdx]; // {title, scenario, reasoning, framework, targetsTags}
 
   var html = '<div class="card">';
@@ -860,7 +871,18 @@ function renderInterviewStep(container) {
   accumulated = ''; fromSpeech = false;
   firstAnswerText = ''; firstFromSpeech = false; firstFillerCount = 0;
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  var qIdx = (day() - 1) % INTERVIEW.length;
+  // Stable weak-spot selection (WEAK-03): store chosen index so reload picks same question
+  var vdI = data['d-' + todayStr] || {};
+  var qIdx;
+  if (vdI.interviewIdx !== undefined) {
+    qIdx = vdI.interviewIdx;
+  } else {
+    var topTagsI = LOGIC.computeTopWeakSpots(data, todayStr);
+    var selI = LOGIC.selectByWeakSpot(INTERVIEW, topTagsI);
+    qIdx = selI ? INTERVIEW.indexOf(selI) : -1;
+    if (qIdx < 0) qIdx = (day()-1) % INTERVIEW.length;
+    if (data['d-' + todayStr]) { data['d-' + todayStr].interviewIdx = qIdx; save(); }
+  }
   var q = INTERVIEW[qIdx]; // {category, question, framework, targetsTags}
 
   var html = '<div class="card" id="interviewCard">';
@@ -893,6 +915,48 @@ function renderInterviewStep(container) {
 
   html += '</div>'; // end #interviewCard
   html += '<button class="btn primary" data-action="interview-submit" disabled style="width:100%;margin-top:8px">Submit answer</button>';
+  container.innerHTML = html;
+}
+
+// ── Render: review day (LEARN-10) for days 7/14/21/28 ────────────────────
+function renderReviewDay(container) {
+  var topTags = LOGIC.computeTopWeakSpots(data, todayStr);
+  var revQ = QUESTIONS[(day()-1) % QUESTIONS.length];
+  var revC = LOGIC.selectByWeakSpot(CASES, topTags) || CASES[(day()-1) % CASES.length];
+  var revI = LOGIC.selectByWeakSpot(INTERVIEW, topTags) || INTERVIEW[(day()-1) % INTERVIEW.length];
+  var vdR = data['d-' + todayStr] || {};
+  var savedRefl = vdR.reflection || '';
+
+  var html = '<div class="card">';
+  html += '<h2>Review Day ' + day() + '</h2>';
+  html += '<p class="muted">Today mixes questions from all frameworks you\'ve seen.</p>';
+
+  html += '<div style="border-top:1px solid var(--line);margin:12px 0;padding-top:12px">';
+  html += '<h3>' + esc(revQ.text) + '</h3>';
+  html += renderCheatCard(revQ.framework, day());
+  html += '<textarea placeholder="Speak or type your answer…" aria-label="Speak answer" style="margin-top:8px;min-height:100px"></textarea>';
+  html += '</div>';
+
+  html += '<div style="border-top:1px solid var(--line);margin:12px 0;padding-top:12px">';
+  html += '<h3>' + esc(revC.title) + '</h3>';
+  html += '<p class="muted">' + esc(revC.scenario) + '</p>';
+  html += renderCheatCard(revC.framework, day());
+  html += '<textarea placeholder="Speak or type your answer…" aria-label="Case answer" style="margin-top:8px;min-height:100px"></textarea>';
+  html += '</div>';
+
+  html += '<div style="border-top:1px solid var(--line);margin:12px 0;padding-top:12px">';
+  html += '<h3>' + esc(revI.question) + '</h3>';
+  html += renderCheatCard(revI.framework, day());
+  html += '<textarea placeholder="Speak or type your answer…" aria-label="Interview answer" style="margin-top:8px;min-height:100px"></textarea>';
+  html += '</div>';
+
+  html += '<div style="border-top:1px solid var(--line);margin:12px 0;padding-top:12px">';
+  html += '<h3>Reflection</h3>';
+  html += '<p>Which framework is hardest for you right now?</p>';
+  html += '<textarea id="reflectionText" placeholder="Your reflection…" aria-label="Reflection" style="margin-top:4px">' + esc(savedRefl) + '</textarea>';
+  html += '<button class="btn" data-action="save-reflection"' + (savedRefl ? ' disabled' : '') + ' style="margin-top:8px">' + (savedRefl ? 'Saved ✓' : 'Save reflection') + '</button>';
+  html += '</div>';
+  html += '</div>';
   container.innerHTML = html;
 }
 
@@ -964,7 +1028,12 @@ function renderApp() {
   } else if (stepName === 'recall') {
     renderRecall(document.getElementById('stepContent'));
   } else {
-    STEPS[stepName].render(document.getElementById('stepContent'));
+    var reviewLesson = typeof LESSONS !== 'undefined' && LESSONS[Math.min(day()-1, LESSONS.length-1)];
+    if (reviewLesson && reviewLesson.isReview) {
+      renderReviewDay(document.getElementById('stepContent'));
+    } else {
+      STEPS[stepName].render(document.getElementById('stepContent'));
+    }
   }
 }
 
@@ -1015,6 +1084,18 @@ document.addEventListener('click', function(e) {
     saveStepAnswer('recall', { skipped: true });
     stop();
     goToStep(currentStep + 1);
+    return;
+  }
+
+  if (action === 'save-reflection') {
+    var rfEl = document.getElementById('reflectionText');
+    if (!rfEl) return;
+    var vdRef = data['d-' + todayStr];
+    if (!vdRef) return;
+    vdRef.reflection = rfEl.value.trim();
+    save();
+    el.textContent = 'Saved ✓';
+    el.disabled = true;
     return;
   }
 
@@ -1196,7 +1277,8 @@ document.addEventListener('click', function(e) {
   if (action === 'case-submit') {
     var ta4 = document.getElementById('transcript');
     if (!ta4 || !ta4.value.trim()) return;
-    var cIdx2 = (day()-1) % CASES.length;
+    var vdCS = data['d-' + todayStr] || {};
+    var cIdx2 = vdCS.caseIdx !== undefined ? vdCS.caseIdx : (day()-1) % CASES.length;
     var cObj = CASES[cIdx2]; // {title, scenario, reasoning, framework, targetsTags}
     fromSpeech = !!(accumulated.trim());
     var caseText = ta4.value.trim();
@@ -1284,7 +1366,8 @@ document.addEventListener('click', function(e) {
     el.style.display = 'none';
 
     // Render follow-up card
-    var qIdx3 = (day()-1) % INTERVIEW.length;
+    var vdIS = data['d-' + todayStr] || {};
+    var qIdx3 = vdIS.interviewIdx !== undefined ? vdIS.interviewIdx : (day()-1) % INTERVIEW.length;
     var q3 = INTERVIEW[qIdx3]; // {category, question, framework, targetsTags}
     var followup = FOLLOWUPS[q3.category] || 'What would you do differently next time?';
     var fuHtml = '<div class="card" style="margin-top:12px"><h3>Follow-up</h3>';
@@ -1301,7 +1384,8 @@ document.addEventListener('click', function(e) {
   if (action === 'interview-final-submit') {
     var fuEl = document.getElementById('followupText');
     if (!fuEl || !fuEl.value.trim()) return;
-    var qIdx4 = (day()-1) % INTERVIEW.length;
+    var vdIF = data['d-' + todayStr] || {};
+    var qIdx4 = vdIF.interviewIdx !== undefined ? vdIF.interviewIdx : (day()-1) % INTERVIEW.length;
     var ifQ = INTERVIEW[qIdx4]; // {category, question, framework, targetsTags}
     var fuText = fuEl.value.trim();
     saveStepAnswer('interview', {
