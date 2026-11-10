@@ -183,4 +183,26 @@ assert.equal(LOGIC.validateBackup(null), false, 'null → false');
 assert.equal(LOGIC.validateBackup({ recallData: { day: 'five' } }), false, 'day as string → false');
 assert.equal(LOGIC.validateBackup({ recallData: { day: 5, vocab: {}, weakspots: [] } }), true, 'full v2 backup → true');
 
+// ── shouldAdvanceProgrammeDay ─────────────────────────────────────────────
+
+// 1. null dayStartedDate → false (first run, nothing to advance)
+assert.equal(LOGIC.shouldAdvanceProgrammeDay(null, { complete: true }, '2026-11-10'), false,
+  'shouldAdvanceProgrammeDay: null dayStartedDate → false');
+
+// 2. dayStartedDate === todayStr → false (same-day reload after session complete: no double-advance)
+assert.equal(LOGIC.shouldAdvanceProgrammeDay('2026-11-10', { complete: true }, '2026-11-10'), false,
+  'shouldAdvanceProgrammeDay: same-day reload → false');
+
+// 3. next calendar day, session was complete → true (advance exactly once)
+assert.equal(LOGIC.shouldAdvanceProgrammeDay('2026-11-09', { complete: true }, '2026-11-10'), true,
+  'shouldAdvanceProgrammeDay: next day + complete → true');
+
+// 4. next calendar day but session was NOT complete → false
+assert.equal(LOGIC.shouldAdvanceProgrammeDay('2026-11-09', { complete: false }, '2026-11-10'), false,
+  'shouldAdvanceProgrammeDay: next day + incomplete → false');
+
+// 5. startup called again same day after advance already set dayStartedDate=todayStr: no second advance
+assert.equal(LOGIC.shouldAdvanceProgrammeDay('2026-11-10', { complete: true }, '2026-11-10'), false,
+  'shouldAdvanceProgrammeDay: dayStartedDate already updated to today → false');
+
 console.log('logic self-check: all passed');

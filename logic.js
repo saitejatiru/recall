@@ -177,6 +177,15 @@
     return true;
   }
 
+  // ── Day-rollover predicate ────────────────────────────────────────────────
+
+  function shouldAdvanceProgrammeDay(dayStartedDate, dayData, todayStr) {
+    if (!dayStartedDate) return false;
+    if (dayStartedDate === todayStr) return false;
+    if (!dayData || dayData.complete !== true) return false;
+    return true;
+  }
+
   // ── Exports ───────────────────────────────────────────────────────────────
 
   exports.today = today;
@@ -190,5 +199,6 @@
   exports.computeLongestStreak = computeLongestStreak;
   exports.migrate = migrate;
   exports.validateBackup = validateBackup;
+  exports.shouldAdvanceProgrammeDay = shouldAdvanceProgrammeDay;
 
 })(typeof module !== 'undefined' ? module.exports : (window.LOGIC = window.LOGIC || {}));
