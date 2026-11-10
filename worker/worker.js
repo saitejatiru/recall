@@ -171,6 +171,89 @@ Respond ONLY with valid JSON matching the schema. max_tokens=400.`;
         }, CORS(allowedOrigin));
       }
 
+      if (mode === 'retry') {
+        const RETRY_SYSTEM = `Compare attempt 2 against attempt 1. Score the improvement and state what changed. Only reference details explicitly in the RESUME block. Return JSON: {"improved":boolean,"fix":string,"betterLine":string,"tags":[string]}. max_tokens=200.`;
+        const userMsg =
+          `<USER_ANSWER attempt="2">${String(ans).slice(0, 4000)}</USER_ANSWER>\n` +
+          `<RESUME>${resumeExcerpt}</RESUME>\n` +
+          `<PREV_ANSWER>${String(attempt1Text).slice(0, 4000)}</PREV_ANSWER>\n` +
+          `<QUESTION>${question}</QUESTION>\n` +
+          `<FRAMEWORK>${framework}</FRAMEWORK>`;
+        return streamJSON(async () => {
+          const { content, error } = await callAI(env, modelList(env), [
+            { role: 'system', content: RETRY_SYSTEM },
+            { role: 'user', content: userMsg },
+          ], { json: true });
+          if (!content) return { error: error || 'ai_error' };
+          let parsed;
+          try { parsed = parseJSONReply(content); } catch { return { error: 'malformed_response' }; }
+          const ok = parsed && typeof parsed.improved === 'boolean' &&
+            typeof parsed.fix === 'string' && typeof parsed.betterLine === 'string' &&
+            validateTags(parsed.tags || []);
+          return ok ? parsed : { error: 'malformed_response' };
+        }, CORS(allowedOrigin));
+      }
+
+      if (mode === 'model') {
+        const MODEL_SYSTEM = `Write a model PM answer (at most 120 words) in the named framework, using only facts explicitly in the RESUME block. If none fit, say 'in your project'. Never invent company names or numbers. Return JSON: {"modelAnswer":string}. max_tokens=200.`;
+        const userMsg =
+          `<RESUME>${resumeExcerpt}</RESUME>\n` +
+          `<QUESTION>${question}</QUESTION>\n` +
+          `<FRAMEWORK>${framework}</FRAMEWORK>`;
+        return streamJSON(async () => {
+          const { content, error } = await callAI(env, modelList(env), [
+            { role: 'system', content: MODEL_SYSTEM },
+            { role: 'user', content: userMsg },
+          ], { json: true });
+          if (!content) return { error: error || 'ai_error' };
+          let parsed;
+          try { parsed = parseJSONReply(content); } catch { return { error: 'malformed_response' }; }
+          const ok = parsed && typeof parsed.modelAnswer === 'string' && parsed.modelAnswer.length > 0;
+          return ok ? parsed : { error: 'malformed_response' };
+        }, CORS(allowedOrigin));
+      }
+
+      if (mode === 'vocab') {
+        const VOCAB_SYSTEM = `Check each sentence for correct use of the named PM term. 'correct' means the term is used accurately in context; 'wrong' means absent or misused. correctedSentence: a better sentence when wrong, or the original when correct. Return JSON: {"results":[{"id":string,"verdict":"correct"|"wrong","correctedSentence":string}]}. max_tokens=400.`;
+        const sentLines = Array.isArray(sentences)
+          ? sentences.map(s => `${s.id}|${s.term}|${s.sentence}`).join('\n')
+          : String(sentences);
+        const userMsg = `<SENTENCES>\n${sentLines}\n</SENTENCES>`;
+        return streamJSON(async () => {
+          const { content, error } = await callAI(env, modelList(env), [
+            { role: 'system', content: VOCAB_SYSTEM },
+            { role: 'user', content: userMsg },
+          ], { json: true });
+          if (!content) return { error: error || 'ai_error' };
+          let parsed;
+          try { parsed = parseJSONReply(content); } catch { return { error: 'malformed_response' }; }
+          const ok = parsed && Array.isArray(parsed.results) &&
+            parsed.results.every(r => typeof r.id === 'string' &&
+              (r.verdict === 'correct' || r.verdict === 'wrong') &&
+              typeof r.correctedSentence === 'string');
+          return ok ? parsed : { error: 'malformed_response' };
+        }, CORS(allowedOrigin));
+      }
+
+      if (mode === 'teachback') {
+        const TEACHBACK_SYSTEM = `The user explains a concept to a new teammate. Find 1-2 gaps or jargon to fix. Total response under 40 words. Return JSON: {"gaps":[string],"betterExplanation":string}. max_tokens=100.`;
+        const userMsg =
+          `<CONCEPT>${concept}</CONCEPT>\n` +
+          `<USER_EXPLANATION>${String(ans).slice(0, 200)}</USER_EXPLANATION>`;
+        return streamJSON(async () => {
+          const { content, error } = await callAI(env, modelList(env), [
+            { role: 'system', content: TEACHBACK_SYSTEM },
+            { role: 'user', content: userMsg },
+          ], { json: true });
+          if (!content) return { error: error || 'ai_error' };
+          let parsed;
+          try { parsed = parseJSONReply(content); } catch { return { error: 'malformed_response' }; }
+          const ok = parsed && Array.isArray(parsed.gaps) &&
+            typeof parsed.betterExplanation === 'string' && parsed.betterExplanation.length > 0;
+          return ok ? parsed : { error: 'malformed_response' };
+        }, CORS(allowedOrigin));
+      }
+
       return json({ error: 'unknown_mode' }, 400, CORS(allowedOrigin));
     }
 
