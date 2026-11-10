@@ -1,6 +1,4 @@
-// app.js — Plan 02-02 journey engine
-// Replaces the 02-01 stub. Covers: passcode modal, workerCall, checkAI (verbatim),
-// day-rollover via LOGIC.shouldAdvanceProgrammeDay, STEPS registry, renderApp.
+// app.js — Plan 02-02 + 02-03 journey engine
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -70,9 +68,150 @@ async function checkAI() {
   }
 }
 
-// ── Timer ─────────────────────────────────────────────────────────────────
+// ── Timer + speech state ──────────────────────────────────────────────────
 let timer = null;
-function stop() { if (timer) clearInterval(timer); timer = null; }
+let timerRunning = false;
+let accumulated = '';
+let listening = false;
+let recognition = null;
+let fromSpeech = false;
+// interview state
+let firstAnswerText = '';
+let firstFromSpeech = false;
+let firstFillerCount = 0;
+
+function stop() {
+  if (timer) clearInterval(timer);
+  timer = null;
+  timerRunning = false;
+  stopRecording();
+}
+
+function stopRecording() {
+  listening = false;
+  if (recognition) { try { recognition.stop(); } catch(e) {} recognition = null; }
+  var mb = document.getElementById('micBtn');
+  var rl = document.getElementById('recLabel');
+  if (mb) { mb.setAttribute('aria-pressed','false'); mb.setAttribute('aria-label','Start recording'); mb.textContent = '🎙 Start speaking'; mb.style.background = ''; }
+  if (rl) rl.style.display = 'none';
+}
+
+function showTypingFallback(msg) {
+  var ta = document.getElementById('transcript');
+  if (!ta) return;
+  ta.style.display = '';
+  if (msg) {
+    var existingNotice = document.getElementById('srFallbackNotice');
+    if (!existingNotice) {
+      var p = document.createElement('p');
+      p.id = 'srFallbackNotice';
+      p.className = 'small muted';
+      p.textContent = msg;
+      ta.parentNode.insertBefore(p, ta);
+    }
+  }
+}
+
+function startRecording() {
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return;
+  if (recognition) { try { recognition.stop(); } catch(e) {} }
+  recognition = new SR();
+  recognition.lang = 'en-US';
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+  recognition.onresult = function(e) {
+    for (var i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) accumulated += (accumulated ? ' ' : '') + e.results[i][0].transcript;
+    }
+  };
+  recognition.onend = function() {
+    if (listening && timerRunning) {
+      // Android silence cut-off: restart
+      try { recognition.start(); } catch(e) {}
+    } else {
+      // Flush to transcript
+      listening = false;
+      var ta = document.getElementById('transcript');
+      if (ta) {
+        if (accumulated.trim()) ta.value = accumulated.trim();
+        ta.style.display = '';
+        updateFillerChip(accumulated, true);
+        enableSubmitIfReady();
+      }
+      stopRecording();
+    }
+  };
+  recognition.onerror = function(e) {
+    if (e.error === 'not-allowed' || e.error === 'permission-denied') {
+      listening = false;
+      showTypingFallback('Microphone access denied. Type your answer below.');
+      stopRecording();
+    } else if (e.error === 'network') {
+      listening = false;
+      var ta = document.getElementById('transcript');
+      if (ta && accumulated.trim()) ta.value = accumulated.trim();
+      showTypingFallback('Recording stopped. Edit the transcript below or type your answer.');
+      stopRecording();
+    }
+  };
+  recognition.start();
+  listening = true;
+  var mb = document.getElementById('micBtn');
+  var rl = document.getElementById('recLabel');
+  if (mb) { mb.setAttribute('aria-pressed','true'); mb.setAttribute('aria-label','Stop recording'); mb.textContent = 'Stop'; mb.style.background = 'var(--accent)'; }
+  if (rl) rl.style.display = '';
+}
+
+function updateFillerChip(text, isSpeech) {
+  var chip = document.getElementById('fillerChip');
+  if (!chip) return;
+  if (!isSpeech || !text.trim()) { chip.style.display = 'none'; return; }
+  var count = LOGIC.countFillers(text);
+  chip.style.display = '';
+  if (count <= 2) {
+    chip.textContent = count + ' filler word' + (count === 1 ? '' : 's') + ' — good';
+    chip.style.color = 'var(--green)';
+  } else if (count <= 5) {
+    chip.textContent = count + ' filler words (um, uh, like, you know)';
+    chip.style.color = '';
+  } else {
+    chip.textContent = count + ' filler words — aim for fewer next time';
+    chip.style.color = '';
+  }
+}
+
+function enableSubmitIfReady() {
+  var ta = document.getElementById('transcript');
+  if (!ta) return;
+  var hasText = ta.value.trim().length > 0;
+  ['speak-submit','case-submit','interview-submit'].forEach(function(a) {
+    var btn = document.querySelector('[data-action="' + a + '"]');
+    if (btn) btn.disabled = !hasText;
+  });
+}
+
+function startSpeakCountdown(secs, onDone) {
+  // secs: 30 (think) or 90 (speak)
+  var el = document.getElementById(secs <= 30 ? 'thinkTimer' : 'speakTimer');
+  if (timer) clearInterval(timer);
+  var remaining = secs;
+  timer = setInterval(function() {
+    remaining--;
+    var m = Math.floor(remaining / 60);
+    var s = remaining % 60;
+    var display = m + ':' + (s < 10 ? '0' : '') + s;
+    if (el) {
+      el.textContent = display;
+      if (secs > 30 && remaining <= 15) el.style.color = 'var(--text)';
+    }
+    if (remaining <= 0) {
+      clearInterval(timer); timer = null;
+      if (onDone) onDone();
+    }
+  }, 1000);
+}
 
 // ── Day rollover ──────────────────────────────────────────────────────────
 const todayStr = LOGIC.today();
@@ -85,12 +224,12 @@ if (!data.dayStartedDate) {
   save();
 }
 
-// ── Step registry ─────────────────────────────────────────────────────────
-const STEP_NAMES = ['vocab', 'recall', 'speak', 'case', 'interview'];
+// ── Step registry names ───────────────────────────────────────────────────
+const STEP_NAMES  = ['vocab', 'recall', 'speak', 'case', 'interview'];
 const STEP_LABELS = ['Vocab', 'Recall', 'Speak', 'Case', 'Interview'];
 const STEP_TIMES  = ['~8 min', '~5 min', '~5 min', '~7 min', '~5 min'];
 
-// Inject hidden file input for backup import (single instance, never in innerHTML)
+// ── Backup import IIFE ────────────────────────────────────────────────────
 (function(){
   var fi = document.createElement('input');
   fi.type = 'file'; fi.accept = '.json'; fi.className = 'hidden'; fi.id = 'importFileInput';
@@ -120,6 +259,104 @@ const STEP_TIMES  = ['~8 min', '~5 min', '~5 min', '~7 min', '~5 min'];
   });
 })();
 
+// ── Resume file input IIFE ────────────────────────────────────────────────
+(function(){
+  var fi = document.createElement('input');
+  fi.type = 'file'; fi.accept = '.pdf'; fi.className = 'hidden'; fi.id = 'resumeFileInput';
+  document.body.appendChild(fi);
+  fi.addEventListener('change', function(){
+    var file = fi.files[0]; fi.value = ''; if (!file) return;
+    extractPDF(file);
+  });
+})();
+
+// ── PDF helpers ───────────────────────────────────────────────────────────
+let _pdfjs = null;
+
+async function loadPdfJs() {
+  if (_pdfjs) return _pdfjs;
+  try {
+    var lib = await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@6.5.438/build/pdf.min.mjs');
+    lib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.5.438/build/pdf.worker.min.mjs';
+    _pdfjs = lib;
+    return lib;
+  } catch(e) { return null; }
+}
+
+function setResumeLoading(isLoading) {
+  ['resume-upload','resume-replace'].forEach(function(a) {
+    var btn = document.querySelector('[data-action="' + a + '"]');
+    if (btn) {
+      btn.disabled = isLoading;
+      if (!isLoading && btn.dataset.origText) { btn.textContent = btn.dataset.origText; delete btn.dataset.origText; }
+      else if (isLoading) { btn.dataset.origText = btn.textContent; btn.textContent = 'Extracting text…'; }
+    }
+  });
+}
+
+function showResumePasteArea(msg) {
+  var journey = document.getElementById('journey');
+  if (!journey) return;
+  var html = '<div class="card" id="resumePasteCard"><h3>Your resume</h3>';
+  if (msg) html += '<p class="muted">' + esc(msg) + '</p>';
+  html += '<textarea id="resumePasteArea" placeholder="Paste your resume text here…" aria-label="Paste resume text" style="min-height:200px"></textarea>';
+  html += '<button class="btn primary" data-action="resume-save-paste" style="margin-top:8px">Save resume</button>';
+  html += '</div>';
+  // Replace existing paste card if any, else append
+  var existing = document.getElementById('resumePasteCard');
+  if (existing) { existing.outerHTML = html; } else { journey.insertAdjacentHTML('beforeend', html); }
+  setResumeLoading(false);
+}
+
+async function extractPDF(file) {
+  setResumeLoading(true);
+  var lib = await loadPdfJs();
+  if (!lib) {
+    showResumePasteArea("Couldn't load PDF reader — paste your resume text instead.");
+    return;
+  }
+  try {
+    var arrayBuffer = await file.arrayBuffer();
+    var pdf = await lib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
+    var allText = '';
+    for (var p = 1; p <= pdf.numPages; p++) {
+      var page = await pdf.getPage(p);
+      var content = await page.getTextContent();
+      allText += content.items.map(function(it) { return it.str; }).join(' ') + '\n';
+    }
+    var avgCharsPerPage = pdf.numPages > 0 ? allText.length / pdf.numPages : 0;
+    if (avgCharsPerPage < 100) {
+      showResumePasteArea('This PDF has no readable text. Paste your resume text in the box below instead.');
+      return;
+    }
+    localStorage.setItem('recallResume', allText.trim());
+    setResumeLoading(false);
+    renderApp();
+  } catch(e) {
+    showResumePasteArea("Couldn't read this file — try another PDF or paste the text.");
+  }
+}
+
+function renderResumeSection() {
+  var saved = localStorage.getItem('recallResume') || '';
+  var html = '<div class="card" id="resumeCard"><h3>Your resume</h3>';
+  if (!saved) {
+    html += '<p class="muted">No resume saved</p>';
+    html += '<p>Upload a PDF to get personalised feedback in future sessions. You can practice without it.</p>';
+    html += '<button class="btn" data-action="resume-upload">Upload PDF resume</button>';
+  } else {
+    html += '<textarea id="resumeText" aria-label="Resume text" style="min-height:200px">' + esc(saved) + '</textarea>';
+    html += '<div id="resumeCharCount" class="small muted">' + saved.length + ' characters</div>';
+    html += '<div class="row" style="margin-top:8px">';
+    html += '<button class="btn" data-action="resume-replace">Replace resume</button>';
+    html += '<button class="btn" data-action="resume-delete">Delete resume</button>';
+    html += '</div>';
+    html += '<p class="small muted">Resume saved on this device only.</p>';
+  }
+  html += '</div>';
+  return html;
+}
+
 // ── Render: stepper ───────────────────────────────────────────────────────
 function renderStepper(currentStep) {
   var html = '<div class="stepper" role="list">';
@@ -134,7 +371,6 @@ function renderStepper(currentStep) {
     html += '</div>';
     if (i < 4) html += '<div class="step-line"></div>';
   }
-  // summary circle
   var sumCls = currentStep >= 5 ? 'step complete' : 'step';
   html += '<div class="step-line"></div>';
   html += '<div class="' + sumCls + '" role="listitem">';
@@ -149,14 +385,11 @@ function renderStepper(currentStep) {
 function renderGrid() {
   var streak = LOGIC.computeStreak(data, todayStr);
   var longest = LOGIC.computeLongestStreak(data);
-  var streakStr = streak === 0
-    ? 'Day 1 — streak starting'
-    : (streak === 1 ? '1-day streak' : streak + '-day streak');
+  var streakStr = streak === 0 ? 'Day 1 — streak starting' : (streak === 1 ? '1-day streak' : streak + '-day streak');
   var html = '<div class="row" style="margin:12px 0 8px">';
   html += '<span style="color:var(--green);font-weight:700;font-size:18px">' + esc(streakStr) + '</span>';
   if (longest > 0) html += '<span class="muted small">&nbsp;· longest: ' + longest + ' day' + (longest === 1 ? '' : 's') + '</span>';
   html += '</div>';
-  // grid: 30 dots
   html += '<details open><summary class="small muted" style="cursor:pointer;margin-bottom:6px">30-day progress</summary>';
   html += '<div class="day-grid">';
   for (var i = 1; i <= 30; i++) {
@@ -200,7 +433,6 @@ function renderFeedbackSlot(stepId) {
 // ── Render: entry screen ──────────────────────────────────────────────────
 function renderEntry(dayData) {
   var step = (dayData && dayData.step) || 0;
-  // On entry, show next step (vocab) as active if not started, else show current 0-indexed
   var stepperIdx = step > 0 ? step - 1 : 0;
   var html = renderStepper(stepperIdx);
   html += '<div class="card" style="margin-top:16px">';
@@ -212,6 +444,7 @@ function renderEntry(dayData) {
     html += '<button class="btn primary" data-action="journey-start" style="width:100%;margin-top:16px">Start today\'s journey</button>';
   }
   html += '</div>';
+  html += renderResumeSection();
   return html;
 }
 
@@ -220,11 +453,6 @@ function renderSummary(dayData) {
   var streak = LOGIC.computeStreak(data, todayStr);
   var vocabDayData = dayData.vocab || {};
   var newWords = vocabDayData.newWords || [];
-  var wordCount = newWords.filter(function(id) {
-    return vocabDayData.results && vocabDayData.results[id] === 'correct';
-  }).length;
-  // Count all vocab new words displayed (not just correct ones) for "learned"
-  // Plan says: "N word(s) learned" — use newWords saved in dayData
   var learnedCount = newWords.length;
 
   var html = '<h1>Done for today!</h1>';
@@ -234,7 +462,6 @@ function renderSummary(dayData) {
   html += '<span>· Streak: ' + streak + ' day' + (streak === 1 ? '' : 's') + '</span>';
   html += '</div>';
 
-  // Word list
   html += '<div class="card">';
   if (newWords.length === 0) {
     html += '<p class="muted">No new words saved today</p>';
@@ -247,7 +474,6 @@ function renderSummary(dayData) {
   }
   html += '</div>';
 
-  // Skipped steps summary
   var skipped = [];
   ['recall','speak','case','interview'].forEach(function(s) {
     if (!dayData[s]) skipped.push(s);
@@ -264,7 +490,7 @@ function renderSummary(dayData) {
   return html;
 }
 
-// ── Helper: find term by id across all VOCAB days ─────────────────────────
+// ── Helper: find term by id ───────────────────────────────────────────────
 function findTermById(id) {
   for (var d = 0; d < VOCAB.length; d++) {
     for (var t = 0; t < VOCAB[d].length; t++) {
@@ -280,7 +506,6 @@ function renderVocab(container) {
   var newTerms = dayIdx < VOCAB.length ? VOCAB[dayIdx] : [];
   var reviewIds = LOGIC.selectReviewWords(data.vocab || {}, todayStr, 5);
 
-  // Init day vocab record if needed
   var vd = data['d-' + todayStr];
   if (!vd.vocab) {
     vd.vocab = {
@@ -293,7 +518,6 @@ function renderVocab(container) {
   }
   var vocabDayData = vd.vocab;
 
-  // Init Leitner state for new words
   if (!data.vocab) data.vocab = {};
   newTerms.forEach(function(t) {
     if (!data.vocab[t.id]) {
@@ -304,7 +528,6 @@ function renderVocab(container) {
 
   var html = '';
 
-  // Reviews section
   if (reviewIds.length > 0) {
     html += '<div class="card" style="margin-bottom:8px">';
     html += '<h2>Reviewing ' + reviewIds.length + ' earlier word' + (reviewIds.length === 1 ? '' : 's') + '</h2>';
@@ -317,13 +540,11 @@ function renderVocab(container) {
     });
   }
 
-  // New word cards (or endless mode notice)
   if (newTerms.length > 0) {
     newTerms.forEach(function(term) {
       html += renderVocabCard(term, 'New word', vocabDayData);
     });
   } else {
-    // Day 31+
     if (reviewIds.length > 0) {
       html += '<p class="muted" style="margin-top:12px">Endless mode arrives later — keep reviewing your words</p>';
     }
@@ -356,14 +577,12 @@ function renderVocabCard(term, badge, vocabDayData) {
 }
 
 // ── Render: recall step ───────────────────────────────────────────────────
-// renderFeedbackSlot('recall') appended by renderApp for the recall step (and all other steps)
 function renderRecall(container) {
   var yesterdayStr = LOGIC.addDays(todayStr, -1);
   var yd = data['d-' + yesterdayStr];
   var html = '';
 
   if (!yd || !yd.vocab || !yd.vocab.newWords || yd.vocab.newWords.length === 0) {
-    // Day 1 empty state
     html += '<div class="card">';
     html += '<div class="row"><span class="tag">~5 min</span></div>';
     html += '<h2>Day 1 — nothing to recall yet</h2>';
@@ -398,28 +617,127 @@ function renderRecall(container) {
   container.innerHTML = html;
 }
 
-// ── STEPS registry ────────────────────────────────────────────────────────
-function placeholderStep(label, timeHint) {
-  return {
-    render: function(container) {
-      container.innerHTML = '<div class="card"><div class="row"><span class="tag">' + esc(timeHint) + '</span></div><h2>' + esc(label) + '</h2><p class="muted">Coming in the next update</p><button class="btn primary" data-action="step-next" style="width:100%">Continue →</button></div>';
-    },
-    submit: function() {}
-  };
+// ── Render: speak step (Step 3) ───────────────────────────────────────────
+function renderSpeakStep(container) {
+  stop();
+  accumulated = ''; fromSpeech = false;
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var qIdx = (day() - 1) % QUESTIONS.length;
+  var questionText = QUESTIONS[qIdx];
+
+  var html = '<div class="card">';
+  html += '<div class="row"><span class="tag">~5 min</span></div>';
+  html += '<h2>Spoken answer</h2>';
+  html += '<p>' + esc(questionText) + '</p>';
+
+  if (!SR) {
+    html += '<p class="small muted">Microphone not available in this browser — type your answer below.</p>';
+  }
+
+  if (SR) {
+    // Think phase (shown first)
+    html += '<div id="thinkPhase">';
+    html += '<p class="small muted" style="margin-top:12px">Think time</p>';
+    html += '<div id="thinkTimer" class="timer" aria-live="polite" style="color:var(--muted)">0:30</div>';
+    html += '<button class="btn primary" data-action="think-start" style="width:100%">Start — 30s to think</button>';
+    html += '</div>';
+
+    // Speak phase (shown after think ends)
+    html += '<div id="speakPhase" style="display:none">';
+    html += '<div id="speakTimer" class="timer" aria-live="polite" style="color:var(--accent)">1:30</div>';
+    html += '<button id="micBtn" class="btn" data-action="mic-toggle" aria-pressed="false" aria-label="Start recording" style="margin-top:8px;min-height:44px">🎙 Start speaking</button>';
+    html += '<span id="recLabel" style="display:none;margin-left:8px" class="small muted">Recording… <span class="dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span></span>';
+    html += '<textarea id="transcript" aria-label="Your answer transcript" placeholder="Edit your transcript here" style="display:none;margin-top:12px;min-height:120px"></textarea>';
+    html += '<div id="fillerChip" class="tag" style="display:none;margin-top:8px"></div>';
+    html += '</div>';
+  } else {
+    html += '<textarea id="transcript" aria-label="Your answer transcript" placeholder="Type your answer here" style="margin-top:12px;min-height:120px"></textarea>';
+    html += '<div id="fillerChip" class="tag" style="display:none;margin-top:8px"></div>';
+  }
+
+  html += '</div>';
+  html += '<button class="btn primary" data-action="speak-submit" disabled style="width:100%;margin-top:8px">Submit answer</button>';
+  container.innerHTML = html;
 }
 
+// ── Render: case step (Step 4) ────────────────────────────────────────────
+function renderCaseStep(container) {
+  stop();
+  accumulated = ''; fromSpeech = false;
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var cIdx = (day() - 1) % CASES.length;
+  var c = CASES[cIdx];
+
+  var html = '<div class="card">';
+  html += '<div class="row"><span class="tag">~7 min</span></div>';
+  html += '<h2>Product case</h2>';
+  html += '<h3>' + esc(c[0]) + '</h3>';
+  html += '<p>' + esc(c[1]) + '</p>';
+
+  if (!SR) {
+    html += '<p class="small muted">Microphone not available in this browser — type your answer below.</p>';
+  } else {
+    html += '<button id="micBtn" class="btn" data-action="mic-toggle" aria-pressed="false" aria-label="Start recording" style="margin-top:8px;min-height:44px">🎙 Start speaking</button>';
+    html += '<span id="recLabel" style="display:none;margin-left:8px" class="small muted">Recording… <span class="dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span></span>';
+  }
+
+  html += '<textarea id="transcript" aria-label="Your answer transcript" placeholder="' + (SR ? 'Edit your transcript here' : 'Type your answer here') + '" style="margin-top:12px;min-height:120px"></textarea>';
+  html += '<div id="fillerChip" class="tag" style="display:none;margin-top:8px"></div>';
+
+  html += '<button class="btn" data-action="case-reasoning" style="margin-top:8px">Show suggested reasoning</button>';
+  html += '<div id="caseReasoning" style="display:none;margin-top:8px;padding:12px;background:var(--panel2);border-radius:10px"><p>' + esc(c[2]) + '</p></div>';
+  html += '</div>';
+  html += '<button class="btn primary" data-action="case-submit" disabled style="width:100%;margin-top:8px">Submit answer</button>';
+  container.innerHTML = html;
+}
+
+// ── Render: interview step (Step 5) ───────────────────────────────────────
+function renderInterviewStep(container) {
+  stop();
+  accumulated = ''; fromSpeech = false;
+  firstAnswerText = ''; firstFromSpeech = false; firstFillerCount = 0;
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var qIdx = (day() - 1) % INTERVIEW.length;
+  var q = INTERVIEW[qIdx];
+
+  var html = '<div class="card" id="interviewCard">';
+  html += '<div class="row"><span class="tag">~5 min</span></div>';
+  html += '<h2>Unexpected question</h2>';
+  html += '<p class="muted">Take a breath. Reveal the question when you\'re ready.</p>';
+  html += '<button class="btn primary" data-action="interview-reveal" style="width:100%;margin-top:12px">Reveal question</button>';
+  html += '<div id="questionText" style="display:none;margin-top:12px"><p><strong>' + esc(q[1]) + '</strong></p></div>';
+
+  // Think phase (hidden until reveal)
+  html += '<div id="thinkPhase" style="display:none">';
+  html += '<p class="small muted" style="margin-top:12px">Think time</p>';
+  html += '<div id="thinkTimer" class="timer" aria-live="polite" style="color:var(--muted)">0:30</div>';
+  html += '</div>';
+
+  // Speak phase (hidden until think ends)
+  html += '<div id="speakPhase" style="display:none">';
+  html += '<div id="speakTimer" class="timer" aria-live="polite" style="color:var(--accent)">1:30</div>';
+  if (SR) {
+    html += '<button id="micBtn" class="btn" data-action="mic-toggle" aria-pressed="false" aria-label="Start recording" style="margin-top:8px;min-height:44px">🎙 Start speaking</button>';
+    html += '<span id="recLabel" style="display:none;margin-left:8px" class="small muted">Recording… <span class="dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span></span>';
+  } else {
+    html += '<p class="small muted">Microphone not available in this browser — type your answer below.</p>';
+  }
+  html += '<textarea id="transcript" aria-label="Your answer transcript" placeholder="' + (SR ? 'Edit your transcript here' : 'Type your answer here') + '" style="' + (SR ? 'display:none;' : '') + 'margin-top:12px;min-height:120px"></textarea>';
+  html += '<div id="fillerChip" class="tag" style="display:none;margin-top:8px"></div>';
+  html += '</div>';
+
+  html += '</div>'; // end #interviewCard
+  html += '<button class="btn primary" data-action="interview-submit" disabled style="width:100%;margin-top:8px">Submit answer</button>';
+  container.innerHTML = html;
+}
+
+// ── STEPS registry ────────────────────────────────────────────────────────
 var STEPS = {
-  vocab: {
-    render: renderVocab,
-    submit: function() {}
-  },
-  recall: {
-    render: renderRecall,
-    submit: function() {}
-  },
-  speak: placeholderStep('Speak', '~5 min'),
-  case: placeholderStep('Case', '~7 min'),
-  interview: placeholderStep('Interview', '~5 min')
+  vocab:     { render: renderVocab,     submit: function() {} },
+  recall:    { render: renderRecall,    submit: function() {} },
+  speak:     { render: renderSpeakStep, submit: function() {} },
+  case:      { render: renderCaseStep,  submit: function() {} },
+  interview: { render: renderInterviewStep, submit: function() {} }
 };
 
 // ── Core ──────────────────────────────────────────────────────────────────
@@ -430,16 +748,11 @@ function saveStepAnswer(stepId, answerObj) {
   save();
 }
 
-// Steps are 1-indexed externally: step=0 → entry, step=1 → vocab, ..., step=5 → interview, step>=6 or complete → summary
-// But plan uses 5 steps with n>=5 → complete. We use step=1..5 for the 5 journey steps.
-// STEP_NAMES[step-1] gives the step key.
-// Steps are 1-indexed: step=1=vocab, step=2=recall, ..., step=5=interview.
-// Navigating PAST interview (n>5) sets complete=true and shows summary.
 function goToStep(n) {
   var vd = data['d-' + todayStr];
   if (!vd) vd = data['d-' + todayStr] = { step: 0, complete: false };
   vd.step = n;
-  if (n > 5) vd.complete = true; // only after all 5 steps done; never modifies data.day
+  if (n > 5) vd.complete = true;
   save();
   renderApp();
   window.scrollTo(0, 0);
@@ -458,14 +771,12 @@ function renderApp() {
   var step = (dayData && dayData.step) || 0;
 
   if (!dayData || step === 0) {
-    container.innerHTML = renderEntry(dayData); // renderEntry draws its own stepper
+    container.innerHTML = renderEntry(dayData);
     return;
   }
 
-  // step 1-5: active steps (1=vocab ... 5=interview). STEP_NAMES is 0-indexed.
-  var stepIdx = step - 1; // 0-indexed into STEP_NAMES
+  var stepIdx = step - 1;
   var stepName = STEP_NAMES[stepIdx] || STEP_NAMES[4];
-  // renderStepper uses 0-indexed comparison; pass stepIdx so active circle matches
   container.innerHTML = renderStepper(stepIdx) + '<div id="stepContent"></div>' + renderFeedbackSlot(stepName);
   if (stepName === 'vocab') {
     renderVocab(document.getElementById('stepContent'));
@@ -557,6 +868,205 @@ document.addEventListener('click', function(e) {
     return;
   }
 
+  // ── Think-start (speak step) ──
+  if (action === 'think-start') {
+    el.disabled = true;
+    startSpeakCountdown(30, function() {
+      var thinkPhase = document.getElementById('thinkPhase');
+      var speakPhase = document.getElementById('speakPhase');
+      if (thinkPhase) thinkPhase.style.display = 'none';
+      if (speakPhase) speakPhase.style.display = '';
+      // Start 90s speak timer
+      timerRunning = true;
+      startSpeakCountdown(90, function() {
+        timerRunning = false;
+        stopRecording();
+        var ta = document.getElementById('transcript');
+        if (ta) {
+          if (!ta.value.trim()) {
+            if (accumulated.trim()) {
+              ta.value = accumulated.trim();
+            } else {
+              ta.value = 'Nothing was captured — speak again or type your answer.';
+            }
+          }
+          ta.style.display = '';
+          updateFillerChip(accumulated, fromSpeech);
+          enableSubmitIfReady();
+        }
+      });
+    });
+    return;
+  }
+
+  // ── Mic toggle ──
+  if (action === 'mic-toggle') {
+    if (el.getAttribute('aria-pressed') === 'true') {
+      stopRecording();
+      var ta2 = document.getElementById('transcript');
+      if (ta2) {
+        if (accumulated.trim() && !ta2.value.trim()) ta2.value = accumulated.trim();
+        ta2.style.display = '';
+        fromSpeech = !!accumulated.trim();
+        updateFillerChip(accumulated, fromSpeech);
+        enableSubmitIfReady();
+      }
+    } else {
+      startRecording();
+      fromSpeech = true;
+    }
+    return;
+  }
+
+  // ── Speak submit ──
+  if (action === 'speak-submit') {
+    var ta3 = document.getElementById('transcript');
+    if (!ta3 || !ta3.value.trim()) return;
+    var text3 = ta3.value.trim();
+    fromSpeech = !!(accumulated.trim());
+    saveStepAnswer('speak', {
+      question: QUESTIONS[(day()-1) % QUESTIONS.length],
+      transcript: text3,
+      fromSpeech: fromSpeech,
+      fillerCount: fromSpeech ? LOGIC.countFillers(accumulated) : 0,
+      rubricChecked: []
+    });
+    stop();
+    goToStep(currentStep + 1);
+    return;
+  }
+
+  // ── Case reasoning toggle ──
+  if (action === 'case-reasoning') {
+    var cr = document.getElementById('caseReasoning');
+    if (!cr) return;
+    var showing = cr.style.display !== 'none';
+    cr.style.display = showing ? 'none' : '';
+    el.textContent = showing ? 'Show suggested reasoning' : 'Hide reasoning';
+    return;
+  }
+
+  // ── Case submit ──
+  if (action === 'case-submit') {
+    var ta4 = document.getElementById('transcript');
+    if (!ta4 || !ta4.value.trim()) return;
+    var cIdx2 = (day()-1) % CASES.length;
+    fromSpeech = !!(accumulated.trim());
+    saveStepAnswer('case', {
+      caseIndex: cIdx2,
+      text: ta4.value.trim(),
+      fromSpeech: fromSpeech,
+      fillerCount: fromSpeech ? LOGIC.countFillers(accumulated) : 0,
+      rubricChecked: []
+    });
+    stop();
+    goToStep(currentStep + 1);
+    return;
+  }
+
+  // ── Interview reveal ──
+  if (action === 'interview-reveal') {
+    el.style.display = 'none';
+    var qt = document.getElementById('questionText');
+    if (qt) qt.style.display = '';
+    var thinkPhaseI = document.getElementById('thinkPhase');
+    if (thinkPhaseI) thinkPhaseI.style.display = '';
+    // Start 30s think timer automatically
+    startSpeakCountdown(30, function() {
+      var thinkPhaseI2 = document.getElementById('thinkPhase');
+      var speakPhaseI = document.getElementById('speakPhase');
+      if (thinkPhaseI2) thinkPhaseI2.style.display = 'none';
+      if (speakPhaseI) speakPhaseI.style.display = '';
+      timerRunning = true;
+      startSpeakCountdown(90, function() {
+        timerRunning = false;
+        stopRecording();
+        var ta5 = document.getElementById('transcript');
+        if (ta5) {
+          if (!ta5.value.trim()) {
+            if (accumulated.trim()) ta5.value = accumulated.trim();
+            else ta5.value = 'Nothing was captured — speak again or type your answer.';
+          }
+          ta5.style.display = '';
+          updateFillerChip(accumulated, fromSpeech);
+          // enable interview-submit
+          var isub = document.querySelector('[data-action="interview-submit"]');
+          if (isub && ta5.value.trim()) isub.disabled = false;
+        }
+      });
+    });
+    return;
+  }
+
+  // ── Interview first answer submit ──
+  if (action === 'interview-submit') {
+    var ta6 = document.getElementById('transcript');
+    if (!ta6 || !ta6.value.trim()) return;
+    firstAnswerText = ta6.value.trim();
+    firstFromSpeech = !!(accumulated.trim());
+    firstFillerCount = firstFromSpeech ? LOGIC.countFillers(accumulated) : 0;
+    stop();
+
+    // Hide speak phase and submit button
+    var speakPhaseI2 = document.getElementById('speakPhase');
+    if (speakPhaseI2) speakPhaseI2.style.display = 'none';
+    el.style.display = 'none';
+
+    // Render follow-up card
+    var qIdx3 = (day()-1) % INTERVIEW.length;
+    var q3 = INTERVIEW[qIdx3];
+    var followup = FOLLOWUPS[q3[0]] || 'What would you do differently next time?';
+    var fuHtml = '<div class="card" style="margin-top:12px"><h3>Follow-up</h3>';
+    fuHtml += '<p>' + esc(followup) + '</p>';
+    fuHtml += '<textarea id="followupText" placeholder="Your answer…" aria-label="Follow-up answer" style="margin-top:8px;min-height:120px"></textarea>';
+    fuHtml += '</div>';
+    fuHtml += '<button class="btn primary" data-action="interview-final-submit" disabled style="width:100%;margin-top:8px">Submit answer</button>';
+    var sc = document.getElementById('stepContent');
+    if (sc) sc.insertAdjacentHTML('beforeend', fuHtml);
+    return;
+  }
+
+  // ── Interview follow-up submit ──
+  if (action === 'interview-final-submit') {
+    var fuEl = document.getElementById('followupText');
+    if (!fuEl || !fuEl.value.trim()) return;
+    var qIdx4 = (day()-1) % INTERVIEW.length;
+    saveStepAnswer('interview', {
+      questionIndex: qIdx4,
+      text: firstAnswerText,
+      followupText: fuEl.value.trim(),
+      fromSpeech: firstFromSpeech,
+      fillerCount: firstFillerCount,
+      rubricChecked: []
+    });
+    stop();
+    goToStep(currentStep + 1);
+    return;
+  }
+
+  // ── Resume actions ──
+  if (action === 'resume-upload' || action === 'resume-replace') {
+    var rfi = document.getElementById('resumeFileInput');
+    if (rfi) rfi.click();
+    return;
+  }
+
+  if (action === 'resume-delete') {
+    if (window.confirm('Delete your saved resume? Your practice history is not affected.')) {
+      localStorage.removeItem('recallResume');
+      renderApp();
+    }
+    return;
+  }
+
+  if (action === 'resume-save-paste') {
+    var pasteEl = document.getElementById('resumePasteArea');
+    if (!pasteEl || !pasteEl.value.trim()) return;
+    localStorage.setItem('recallResume', pasteEl.value.trim());
+    renderApp();
+    return;
+  }
+
   if (action === 'export-backup') {
     var payload = { recallData: data, recallResume: localStorage.getItem('recallResume') || '' };
     var u = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }));
@@ -572,12 +1082,38 @@ document.addEventListener('click', function(e) {
   }
 });
 
-// Enable/disable vocab Save button on input
+// ── Input delegation ──────────────────────────────────────────────────────
 document.addEventListener('input', function(e) {
-  if (e.target.tagName === 'TEXTAREA' && e.target.id && e.target.id.startsWith('sent-')) {
-    var termId = e.target.id.slice(5);
-    var btn = document.querySelector('[data-action="vocab-save"][data-term-id="' + CSS.escape(termId) + '"]');
-    if (btn) btn.disabled = !e.target.value.trim();
+  var id = e.target.id || '';
+  var val = e.target.value || '';
+
+  // Vocab sentence textarea → enable Save button
+  if (e.target.tagName === 'TEXTAREA' && id.startsWith('sent-')) {
+    var termId2 = id.slice(5);
+    var btn2 = document.querySelector('[data-action="vocab-save"][data-term-id="' + CSS.escape(termId2) + '"]');
+    if (btn2) btn2.disabled = !val.trim();
+    return;
+  }
+
+  // Transcript textarea → enable step submit
+  if (id === 'transcript') {
+    enableSubmitIfReady();
+    return;
+  }
+
+  // Follow-up textarea → enable interview-final-submit
+  if (id === 'followupText') {
+    var fsub = document.querySelector('[data-action="interview-final-submit"]');
+    if (fsub) fsub.disabled = !val.trim();
+    return;
+  }
+
+  // Resume text textarea → auto-save + update char count
+  if (id === 'resumeText') {
+    localStorage.setItem('recallResume', val);
+    var cc = document.getElementById('resumeCharCount');
+    if (cc) cc.textContent = val.length + ' characters';
+    return;
   }
 });
 
