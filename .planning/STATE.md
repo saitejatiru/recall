@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 2
 current_phase_name: Journey Shell
 status: executing
-stopped_at: Phase 2 UI-SPEC approved
-last_updated: "2026-11-10T04:52:35.579Z"
-last_activity: 2026-11-09
-last_activity_desc: Phase 1 complete, transitioned to Phase 2
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-11-10T06:03:15.494Z"
+last_activity: 2026-11-10
+last_activity_desc: Phase 2 execution started
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 6
-  completed_plans: 3
+  completed_plans: 4
 ---
 
 # Project State
@@ -23,16 +23,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-09)
 
 **Core value:** After every practice answer, the learner gets short, specific and personalised feedback (score, the one fix that matters most, and a better line to say) so each day's practice measurably improves how they articulate PM answers.
-**Current focus:** Phase 1 — Proxy & Hosting
+**Current focus:** Phase 2 — Journey Shell
 
 ## Current Position
 
-Phase: 2 — Journey Shell
-Plan: Not started
+Phase: 2 (Journey Shell) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-11-09 — Phase 1 complete, transitioned to Phase 2
+Last activity: 2026-11-10 — Phase 2 execution started
 
-Progress: [██████████] 100%
+Progress: [███████░░░] 67%
 
 ## Performance Metrics
 
@@ -61,6 +61,7 @@ Progress: [██████████] 100%
 |------|----------|-------|-------|
 | Phase 01-proxy-hosting P02 | session | 3 tasks | 2 files |
 | Phase 01-proxy-hosting P03 | ~15min | 5 tasks | 5 files |
+| Phase 02 P01 | 22min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -78,6 +79,9 @@ Recent decisions affecting current work:
 - [Phase ?]: fail-closed Worker passcode: unset PASSCODE secret returns 403 (not passthrough)
 - [Phase ?]: DEFAULT_MODELS = gemini-3.5-flash-lite,nvidia/nemotron-3.5-super-vl-120b-a12b,gemini-3.8-flash — live bake-off winner; Flash-Lite 2/8/2 scores, JSON 3/3, ~1.7s
 - [Phase ?]: Phase 1 complete: PROXY-01..06 all verified live 2026-11-09; recallnow.pages.dev + recall-proxy auto-deploy both confirmed
+- [Phase ?]: UMD wrapper for logic.js: browser sets window.LOGIC, Node uses module.exports — zero-build dual-use
+- [Phase ?]: app.js stub created for passcode modal, AI status bar, and LOGIC.migrate — Plan 02-02 replaces journey placeholder
+- [Phase ?]: checkVocab strips parentheticals before term matching so JTBD-style terms match on bare term
 
 ### Pending Todos
 
@@ -90,6 +94,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-11-09T17:29:49.854Z
-Stopped at: Phase 2 UI-SPEC approved
-Resume file: .planning/phases/02-journey-shell/02-UI-SPEC.md
+Last session: 2026-11-10T06:03:15.472Z
+Stopped at: Completed 02-01-PLAN.md
+Resume file: None

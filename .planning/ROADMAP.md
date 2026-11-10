@@ -54,7 +54,12 @@ Plans:
   4. Each day shows 5 new PM vocab words with examples; user writes or speaks a sentence and receives a local correctness check; earlier words resurface via Leitner review (up to 5/day)
   5. When AI is unavailable, user can self-check with a rubric checklist and complete the full day without being blocked
 
-**Plans**: TBD
+**Plans**: 1/3 plans executed
+
+- [x] 02-01-PLAN.md
+- [ ] 02-02-PLAN.md
+- [ ] 02-03-PLAN.md
+
 **UI hint**: yes
 
 ### Phase 3: AI Coach + Weak Spots
@@ -90,6 +95,6 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Proxy & Hosting | 3/3 | Complete    | 2026-11-09 |
-| 2. Journey Shell | 0/? | Not started | - |
+| 2. Journey Shell | 1/3 | In Progress|  |
 | 3. AI Coach + Weak Spots | 0/? | Not started | - |
 | 4. Endless Mode | 0/? | Not started | - |

@@ -7,19 +7,19 @@
 
 ### Journey (single tab)
 
-- [ ] **JRNY-01**: User sees one page (no tabs) with today's journey as ordered steps and a progress bar
-- [ ] **JRNY-02**: User can close the browser mid-journey and continue at the same step when they come back
+- [x] **JRNY-01**: User sees one page (no tabs) with today's journey as ordered steps and a progress bar
+- [x] **JRNY-02**: User can close the browser mid-journey and continue at the same step when they come back
 - [ ] **JRNY-03**: When all steps are done, user sees a day summary: scores, words learned, top weak spots
-- [ ] **JRNY-04**: User sees their current streak (survives one missed day) and a 30-day progress grid
-- [ ] **JRNY-05**: Each step shows a time hint, and a full day takes 20–30 minutes
-- [ ] **JRNY-06**: Progress saved by the old version of the app is still there after the upgrade
-- [ ] **JRNY-07**: User can export all progress to a JSON file and import it on another device
+- [x] **JRNY-04**: User sees their current streak (survives one missed day) and a 30-day progress grid
+- [x] **JRNY-05**: Each step shows a time hint, and a full day takes 20–30 minutes
+- [x] **JRNY-06**: Progress saved by the old version of the app is still there after the upgrade
+- [x] **JRNY-07**: User can export all progress to a JSON file and import it on another device
 
 ### Vocabulary
 
-- [ ] **VOC-01**: Each day the user gets 5 new PM words (from a 150-term curriculum), each with a plain meaning, an everyday example and an interview usage example
-- [ ] **VOC-02**: User writes or says their own sentence for each word, and the coach says whether the usage is right and gives a better sentence
-- [ ] **VOC-03**: Earlier words come back for review on a spaced schedule (Leitner boxes), at most 5 reviews a day
+- [x] **VOC-01**: Each day the user gets 5 new PM words (from a 150-term curriculum), each with a plain meaning, an everyday example and an interview usage example
+- [x] **VOC-02**: User writes or says their own sentence for each word, and the coach says whether the usage is right and gives a better sentence
+- [x] **VOC-03**: Earlier words come back for review on a spaced schedule (Leitner boxes), at most 5 reviews a day
 
 ### Practice
 
@@ -28,7 +28,7 @@
 - [ ] **PRAC-03**: If speech recognition is not available, the user can type every answer instead (one-line notice, no error)
 - [ ] **PRAC-04**: Case step: one product case per day that the user answers (spoken or typed)
 - [ ] **PRAC-05**: Unexpected question: the question is hidden until the user starts; 30 s think, 90 s answer; the coach then asks one follow-up question and the user answers it
-- [ ] **PRAC-06**: For spoken answers the user sees a filler-word count (um, uh, like, you know…) worked out without an AI call
+- [x] **PRAC-06**: For spoken answers the user sees a filler-word count (um, uh, like, you know…) worked out without an AI call
 
 ### AI Coach
 
@@ -92,22 +92,22 @@ Deferred. Tracked but not in the current roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| JRNY-01 | Phase 2 | Pending |
-| JRNY-02 | Phase 2 | Pending |
+| JRNY-01 | Phase 2 | Complete |
+| JRNY-02 | Phase 2 | Complete |
 | JRNY-03 | Phase 2 | Pending |
-| JRNY-04 | Phase 2 | Pending |
-| JRNY-05 | Phase 2 | Pending |
-| JRNY-06 | Phase 2 | Pending |
-| JRNY-07 | Phase 2 | Pending |
-| VOC-01 | Phase 2 | Pending |
-| VOC-02 | Phase 2 | Pending |
-| VOC-03 | Phase 2 | Pending |
+| JRNY-04 | Phase 2 | Complete |
+| JRNY-05 | Phase 2 | Complete |
+| JRNY-06 | Phase 2 | Complete |
+| JRNY-07 | Phase 2 | Complete |
+| VOC-01 | Phase 2 | Complete |
+| VOC-02 | Phase 2 | Complete |
+| VOC-03 | Phase 2 | Complete |
 | PRAC-01 | Phase 2 | Pending |
 | PRAC-02 | Phase 2 | Pending |
 | PRAC-03 | Phase 2 | Pending |
 | PRAC-04 | Phase 2 | Pending |
 | PRAC-05 | Phase 2 | Pending |
-| PRAC-06 | Phase 2 | Pending |
+| PRAC-06 | Phase 2 | Complete |
 | COACH-01 | Phase 3 | Pending |
 | COACH-02 | Phase 3 | Pending |
 | COACH-03 | Phase 3 | Pending |
