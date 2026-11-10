@@ -179,4 +179,19 @@ fakeNim(() => reply(200, '{}'));
 r = await call({ task: 'coach', passcode: 'pw', mode: 'answer', question: 'q', framework: 'STAR', answer: 'a', todayWords: [], learnedWords: [], resumeExcerpt: '' });
 assert.equal(r.json.error, 'malformed_response', 'malformed reply returns error');
 
+// 13. generate: valid pack passes through; bad framework → malformed
+const W = i => ({ term: 'T' + i, meaning: 'm', everyday: 'e', interview: 'i' });
+const PACK = { words: [0,1,2,3,4].map(W), lesson: { concept: 'c', detail: 'd', workedExample: 'w', framework: 'CIRCLES' },
+  question: { text: 'q', framework: 'STAR' }, case: { title: 't', scenario: 's', reasoning: 'r', framework: 'RICE', targetsTags: ['no-metric'] },
+  interview: { category: 'product', question: 'iq', framework: 'PREP', targetsTags: ['rambling'] } };
+fakeNim(() => reply(200, JSON.stringify(PACK)));
+r = await call({ task: 'generate', passcode: 'pw', dayNum: 31, topTags: ['no-metric'], seenTerms: ['OKR'], seenQuestions: [], resumeExcerpt: '' });
+assert.equal(r.json.words.length, 5, 'generate: 5 words');
+assert.equal(r.json.case.framework, 'RICE', 'generate: case passes through');
+fakeNim(() => reply(200, JSON.stringify({ ...PACK, case: { ...PACK.case, framework: 'SWOT' } })));
+r = await call({ task: 'generate', passcode: 'pw', dayNum: 31 });
+assert.equal(r.json.error, 'malformed_response', 'generate: unknown framework rejected');
+r = await call({ task: 'generate', passcode: 'nope', dayNum: 31 });
+assert.equal(r.status, 403, 'generate: passcode enforced');
+
 console.log('worker self-check: all passed');
