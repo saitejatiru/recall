@@ -23,7 +23,34 @@ if (typeof LOGIC !== 'undefined' && !(data._version >= 3)) {
   save();
 }
 
-const day = () => Math.max(1, +data.day || 1);
+const todayStr = (typeof LOGIC !== 'undefined' && LOGIC.today) ? LOGIC.today() : new Date().toLocaleDateString('en-CA');
+
+function currentDayNum() {
+  return Math.max(1, +data.day || 1);
+}
+
+function activeDayNum() {
+  return Math.max(1, +data.viewDay || currentDayNum());
+}
+
+const day = () => activeDayNum();
+
+function dateKeyForDay(dayNum) {
+  var cur = currentDayNum();
+  if (dayNum === cur) {
+    return 'd-' + todayStr;
+  }
+  for (var key in data) {
+    if (key.indexOf('d-') === 0 && data[key] && data[key].dayNumber === dayNum) {
+      return key;
+    }
+  }
+  return 'd-' + (typeof LOGIC !== 'undefined' && LOGIC.addDays ? LOGIC.addDays(todayStr, dayNum - cur) : todayStr);
+}
+
+function activeDateKey() {
+  return dateKeyForDay(activeDayNum());
+}
 
 // ── Passcode modal ────────────────────────────────────────────────────────
 (function(){
@@ -215,7 +242,6 @@ function startSpeakCountdown(secs, onDone) {
 }
 
 // ── Day rollover ──────────────────────────────────────────────────────────
-const todayStr = LOGIC.today();
 if (!data.dayStartedDate) {
   data.dayStartedDate = todayStr;
   save();
@@ -431,23 +457,70 @@ function renderResumeSection() {
   return html;
 }
 
+// ── Render: top toolbar (all pages) ───────────────────────────────────────
+function renderTopToolbar() {
+  var curDay = currentDayNum();
+  var actDay = activeDayNum();
+  var isPast = (actDay !== curDay);
+  var maxDay = Math.max(curDay, actDay);
+
+  var html = '<div class="card" style="margin-bottom:14px;padding:10px 14px;background:var(--panel2);border:1px solid var(--line);border-radius:12px">';
+  html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">';
+
+  // Left: Day dropdown & Revisit indicator
+  html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
+  html += '<label for="dayNavSelect" class="small muted" style="font-weight:600">Day:</label>';
+  html += '<select id="dayNavSelect" aria-label="Select day to visit" style="background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:5px 10px;font-size:13px;font-weight:700;cursor:pointer">';
+  for (var d = 1; d <= maxDay; d++) {
+    var label = 'Day ' + d + (d === curDay ? ' (Today)' : '');
+    html += '<option value="' + d + '"' + (d === actDay ? ' selected' : '') + '>' + label + '</option>';
+  }
+  html += '<option value="jump">Jump to any day\u2026</option>';
+  html += '</select>';
+
+  if (isPast) {
+    html += '<span class="tag" style="background:var(--panel);border-color:var(--accent);color:var(--accent);font-weight:600">Viewing Day ' + actDay + '</span>';
+    html += '<button class="btn small" data-action="return-today" style="padding:4px 10px;font-size:12px;font-weight:600;background:var(--panel);border-color:var(--line)">Return to Today (Day ' + curDay + ') &rarr;</button>';
+  }
+  html += '</div>';
+
+  // Right: Restart or Retake button
+  html += '<div style="display:flex;align-items:center;gap:8px">';
+  if (isPast) {
+    html += '<button class="btn small" data-action="day-retake" style="padding:4px 12px;font-size:12px;font-weight:600;border-color:var(--accent);color:var(--accent)" title="Reset and retake Day ' + actDay + ' answers without touching other days">&#8635; Retake Day ' + actDay + '</button>';
+  } else {
+    html += '<button class="btn small" data-action="day-restart" style="padding:4px 12px;font-size:12px;font-weight:600" title="Reset today\'s answers and restart Day ' + actDay + ' from Step 1">&#8635; Restart Day ' + actDay + '</button>';
+  }
+  html += '</div>';
+
+  html += '</div>';
+  html += '</div>';
+  return html;
+}
+
 // ── Render: stepper ───────────────────────────────────────────────────────
 function renderStepper(currentStep) {
+  var vd = data[activeDateKey()];
+  var maxReached = (vd && vd.complete) ? 5 : ((vd && (vd.maxStep || vd.step)) || 0);
   var html = '<div class="stepper" role="list">';
   for (var i = 0; i < 5; i++) {
     var cls = i < currentStep ? 'step complete' : (i === currentStep ? 'step active' : 'step');
     var circle = i < currentStep ? '✓' : (i + 1);
     var aria = 'aria-label="Step ' + (i+1) + ' of 5: ' + STEP_LABELS[i] + '"' +
                (i === currentStep ? ' aria-current="step"' : '');
-    html += '<div class="' + cls + '" role="listitem">';
+    var canClick = (vd && (vd.complete || (i + 1) <= maxReached));
+    var clickAttr = canClick ? ' data-action="stepper-step" data-step="' + (i + 1) + '" style="cursor:pointer" title="Go to ' + esc(STEP_LABELS[i]) + '"' : '';
+    html += '<div class="' + cls + '" role="listitem"' + clickAttr + '>';
     html += '<div class="step-circle" ' + aria + '>' + circle + '</div>';
     html += '<div class="step-label">' + esc(STEP_LABELS[i]) + '</div>';
     html += '</div>';
     if (i < 4) html += '<div class="step-line"></div>';
   }
   var sumCls = currentStep >= 5 ? 'step complete' : 'step';
+  var canClickSum = (vd && vd.complete);
+  var sumClickAttr = canClickSum ? ' data-action="view-summary" style="cursor:pointer" title="View Summary"' : '';
   html += '<div class="step-line"></div>';
-  html += '<div class="' + sumCls + '" role="listitem">';
+  html += '<div class="' + sumCls + '" role="listitem"' + sumClickAttr + '>';
   html += '<div class="step-circle" aria-label="Summary">✓</div>';
   html += '<div class="step-label">Done</div>';
   html += '</div>';
@@ -466,19 +539,27 @@ function renderGrid() {
   html += '</div>';
   html += '<details open><summary class="small muted" style="cursor:pointer;margin-bottom:6px">' + (day() > 30 ? 'Last 30 days' : '30-day progress') + '</summary>';
   html += '<div class="day-grid">';
-  var off = Math.max(0, day() - 30);
+  var off = Math.max(0, currentDayNum() - 30);
   for (var i = 1; i <= 30; i++) {
-    var dateForDay = LOGIC.addDays(todayStr, i + off - day());
-    var dd = data['d-' + dateForDay];
+    var dNum = i + off;
+    var dateKey = dateKeyForDay(dNum);
+    var dd = data[dateKey];
     var complete = dd && (dd.complete === true || dd.step >= 5);
-    var isToday = (i + off === day());
-    var isFuture = (i + off > day());
-    var style;
-    if (complete) style = 'background:var(--green);border-color:var(--green)';
-    else if (isToday) style = 'background:var(--accent);border-color:var(--accent)';
-    else if (isFuture) style = 'background:transparent;border-color:var(--line)';
-    else style = 'background:var(--panel2);border-color:var(--line)';
-    html += '<div class="day-dot" title="Day ' + (i + off) + '" style="' + style + '"></div>';
+    var isCurrent = (dNum === currentDayNum());
+    var isActive = (dNum === activeDayNum());
+    var isFuture = (dNum > currentDayNum());
+    var style = '';
+    if (complete) style = 'background:var(--green);border-color:var(--green);';
+    else if (isCurrent) style = 'background:var(--accent);border-color:var(--accent);';
+    else if (isFuture) style = 'background:transparent;border-color:var(--line);';
+    else style = 'background:var(--panel2);border-color:var(--line);';
+    if (isActive) style += 'outline:2px solid var(--text);outline-offset:2px;';
+    var clickAttr = '';
+    if (dNum <= currentDayNum()) {
+      style += 'cursor:pointer;';
+      clickAttr = ' data-action="grid-day-click" data-day="' + dNum + '"';
+    }
+    html += '<div class="day-dot" title="Day ' + dNum + (isActive ? ' (active)' : '') + '" style="' + style + '"' + clickAttr + '></div>';
   }
   html += '</div></details>';
   return html;
@@ -486,6 +567,8 @@ function renderGrid() {
 
 // ── Render: feedback slot (self-check rubric) ─────────────────────────────
 function renderFeedbackSlot(stepId) {
+  var vd = data[activeDateKey()];
+  var savedChecked = (vd && vd[stepId] && Array.isArray(vd[stepId].rubricChecked)) ? vd[stepId].rubricChecked : [];
   var rubricItems = [
     'Structure — Did I give a clear opening and conclusion?',
     'Clarity — Would a non-PM understand my answer?',
@@ -497,10 +580,23 @@ function renderFeedbackSlot(stepId) {
   var html = '<div class="card" id="rubricSlot-' + esc(stepId) + '">';
   html += '<h2>Self-check</h2>';
   rubricItems.forEach(function(item, idx) {
-    html += '<label class="task"><input type="checkbox" data-rubric-idx="' + idx + '"> ' + esc(item) + '</label>';
+    var checkedAttr = savedChecked.indexOf(idx) !== -1 ? ' checked' : '';
+    html += '<label class="task"><input type="checkbox" data-rubric-idx="' + idx + '"' + checkedAttr + '> ' + esc(item) + '</label>';
   });
   html += '<button class="btn primary" data-action="step-done" style="margin-top:12px;width:100%">Done — move on</button>';
-  html += '<div id="aiFeedback" class="hidden"></div>';
+
+  var af = (vd && vd[stepId] && vd[stepId].aiFeedback) || null;
+  if (af && af.score) {
+    html += '<div id="aiFeedback" style="margin-top:12px">';
+    html += '<div class="row" style="margin-bottom:8px">';
+    html += '<span class="tag" style="background:var(--accent);color:#101827;border-color:var(--accent)">' + esc(String(af.score)) + '/10</span>';
+    html += '</div>';
+    if (af.fix) html += '<p><strong>One fix:</strong> ' + esc(af.fix) + '</p>';
+    if (af.betterLine) html += '<div style="border-left:4px solid var(--accent);background:var(--panel2);padding:12px 16px;border-radius:0 8px 8px 0;margin:8px 0">' + esc(af.betterLine) + '</div>';
+    html += '</div>';
+  } else {
+    html += '<div id="aiFeedback" class="hidden"></div>';
+  }
   html += '</div>';
   return html;
 }
@@ -511,7 +607,7 @@ function renderEntry(dayData) {
   var stepperIdx = step > 0 ? step - 1 : 0;
   var html = renderStepper(stepperIdx);
   html += '<div class="card" style="margin-top:16px">';
-  html += '<h1>Day ' + day() + ' / 30</h1>';
+  html += '<h1>Day ' + day() + (day() > 30 ? ' · Endless' : ' / 30') + (activeDayNum() !== currentDayNum() ? ' (Viewing)' : '') + '</h1>';
   html += renderGrid();
   // Weak-spot banner (WEAK-02)
   var weakTags = LOGIC.computeTopWeakSpots(data, todayStr);
@@ -524,7 +620,7 @@ function renderEntry(dayData) {
   if (dayData && step > 0 && !dayData.complete) {
     html += '<button class="btn primary" data-action="journey-start" style="width:100%;margin-top:16px">Continue from Step ' + step + ' (' + esc(STEP_LABELS[step - 1] || '') + ')</button>';
   } else {
-    html += '<button class="btn primary" data-action="journey-start" style="width:100%;margin-top:16px">Start today\'s journey</button>';
+    html += '<button class="btn primary" data-action="journey-start" style="width:100%;margin-top:16px">' + (activeDayNum() !== currentDayNum() ? 'Start Day ' + day() + ' journey' : 'Start today\'s journey') + '</button>';
   }
   html += '</div>';
   html += renderResumeSection();
@@ -540,9 +636,9 @@ function renderSummary(dayData) {
   var newWords = vocabDayData.newWords || [];
   var learnedCount = newWords.length;
 
-  var html = '<h1>Done for today!</h1>';
+  var html = '<h1>' + (activeDayNum() === currentDayNum() ? 'Done for today!' : 'Day ' + day() + ' Summary') + '</h1>';
   html += '<div class="row" style="margin:12px 0">';
-  html += '<span>Day ' + day() + (day() > 30 ? ' · Endless' : '/30') + '</span>';
+  html += '<span>Day ' + day() + (day() > 30 ? ' · Endless' : '/30') + (activeDayNum() !== currentDayNum() ? ' (Past Day)' : '') + '</span>';
   html += '<span>· ' + learnedCount + ' word' + (learnedCount === 1 ? '' : 's') + ' learned</span>';
   html += '<span>· Streak: ' + streak + ' day' + (streak === 1 ? '' : 's') + '</span>';
   html += '</div>';
@@ -582,6 +678,15 @@ function renderSummary(dayData) {
   html += '<button class="btn" data-action="import-backup">Import backup</button>';
   html += '</div>';
   html += '<div id="importStatus" class="small muted" style="margin-top:8px"></div>';
+
+  html += '<div class="row" style="margin-top:14px;border-top:1px solid var(--line);padding-top:14px">';
+  if (activeDayNum() !== currentDayNum()) {
+    html += '<button class="btn primary" data-action="return-today">Return to Today (Day ' + currentDayNum() + ') &rarr;</button>';
+    html += '<button class="btn" data-action="day-retake" style="border-color:var(--accent);color:var(--accent)">&#8635; Retake Day ' + day() + '</button>';
+  } else {
+    html += '<button class="btn" data-action="day-restart">&#8635; Restart Day ' + day() + '</button>';
+  }
+  html += '</div>';
   return html;
 }
 
@@ -616,7 +721,7 @@ function dayQuestion() { var p = dayPack(); return p ? p.question : QUESTIONS[(d
 function dayLesson() { var p = dayPack(); return p ? p.lesson : LESSONS[Math.min(day() - 1, LESSONS.length - 1)]; }
 function dayCase() {
   var p = dayPack(); if (p) return p.case;
-  var vd = data['d-' + todayStr];
+  var vd = data[activeDateKey()];
   if (!vd || vd.caseIdx === undefined) {
     var i = CASES.indexOf(LOGIC.selectByWeakSpot(CASES, LOGIC.computeTopWeakSpots(data, todayStr)));
     if (i < 0) i = (day() - 1) % CASES.length;
@@ -627,7 +732,7 @@ function dayCase() {
 }
 function dayInterview() {
   var p = dayPack(); if (p) return p.interview;
-  var vd = data['d-' + todayStr];
+  var vd = data[activeDateKey()];
   if (!vd || vd.interviewIdx === undefined) {
     var i = INTERVIEW.indexOf(LOGIC.selectByWeakSpot(INTERVIEW, LOGIC.computeTopWeakSpots(data, todayStr)));
     if (i < 0) i = (day() - 1) % INTERVIEW.length;
@@ -697,7 +802,7 @@ function renderCoachFeedback(stepId, res) {
   if (!af) return;
   if (!res || !LOGIC.validateCoachResponse(res)) { showSelfCheckFallback(stepId); return; }
   // Store aiFeedback
-  var vd = data['d-' + todayStr];
+  var vd = data[activeDateKey()];
   if (!vd) return;
   if (!vd[stepId]) vd[stepId] = {};
   vd[stepId].aiFeedback = { score: res.score, fix: res.fix, tags: res.tags || [], wordsUsed: res.wordsUsed || [] };
@@ -720,7 +825,7 @@ function renderCoachFeedback(stepId, res) {
 
 // ── AI coach: batch-check vocab sentences (fire-and-forget) ──────────────
 function runVocabAICheck() {
-  var vd = data['d-' + todayStr];
+  var vd = data[activeDateKey()];
   if (!vd || !vd.vocab || !vd.vocab.sentences) return;
   var sentences = [];
   Object.keys(vd.vocab.sentences).forEach(function(id) {
@@ -753,7 +858,8 @@ function renderVocab(container) {
   var reviewIds = LOGIC.selectReviewWords(data.vocab || {}, todayStr, 5);
   reviewIds = reviewIds.filter(function(id) { return !newTerms.some(function(t) { return t.id === id; }); });
 
-  var vd = data['d-' + todayStr];
+  var vd = data[activeDateKey()];
+  if (!vd) vd = data[activeDateKey()] = { step: 1, complete: false, dayNumber: day() };
   if (!vd.vocab) {
     vd.vocab = {
       newWords: newTerms.map(function(t) { return t.id; }),
@@ -836,15 +942,15 @@ function renderVocabCard(term, badge, vocabDayData) {
 
 // ── Render: recall step ───────────────────────────────────────────────────
 function renderRecall(container) {
-  var yesterdayStr = LOGIC.addDays(todayStr, -1);
-  var yd = data['d-' + yesterdayStr];
+  var prevKey = day() > 1 ? dateKeyForDay(day() - 1) : null;
+  var yd = prevKey ? data[prevKey] : null;
   var html = '';
 
-  if (!yd || !yd.vocab || !yd.vocab.newWords || yd.vocab.newWords.length === 0) {
+  if (day() <= 1 || !yd || !yd.vocab || !yd.vocab.newWords || yd.vocab.newWords.length === 0) {
     html += '<div class="card">';
     html += '<div class="row"><span class="tag">~5 min</span></div>';
-    html += '<h2>Day 1 — nothing to recall yet</h2>';
-    html += '<p class="muted">Complete today\'s vocab and speaking steps. Tomorrow you\'ll recall what you learned here.</p>';
+    html += '<h2>' + (day() === 1 ? 'Day 1 — nothing to recall yet' : 'Nothing to recall from Day ' + (day() - 1)) + '</h2>';
+    html += '<p class="muted">' + (day() === 1 ? 'Complete today\'s vocab and speaking steps. Tomorrow you\'ll recall what you learned here.' : 'No vocabulary words recorded for Day ' + (day() - 1) + '.') + '</p>';
     html += '<button class="btn primary" data-action="recall-skip" style="width:100%;margin-top:12px">Skip to Step 3</button>';
     html += '</div>';
   } else {
@@ -907,6 +1013,9 @@ function renderSpeakStep(container) {
   accumulated = ''; fromSpeech = false;
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   var q = dayQuestion();
+  var vd = data[activeDateKey()];
+  var prevAns = (vd && vd.speak && (vd.speak.transcript || vd.speak.text)) || '';
+  var hasAnswer = prevAns.length > 0;
 
   var html = '<div class="card">';
   html += '<div class="row"><span class="tag">~5 min</span></div>';
@@ -920,37 +1029,40 @@ function renderSpeakStep(container) {
   }
 
   if (SR) {
-    // Think phase (shown first)
-    html += '<div id="thinkPhase">';
+    // Think phase (shown first, unless answer already exists)
+    html += '<div id="thinkPhase"' + (hasAnswer ? ' style="display:none"' : '') + '>';
     html += '<p class="small muted" style="margin-top:12px">Think time</p>';
     html += '<div id="thinkTimer" class="timer" aria-live="polite" style="color:var(--muted)">0:30</div>';
     html += '<button class="btn primary" data-action="think-start" style="width:100%">Start — 30s to think</button>';
     html += '</div>';
 
-    // Speak phase (shown after think ends)
-    html += '<div id="speakPhase" style="display:none">';
+    // Speak phase (shown after think ends or if already answered)
+    html += '<div id="speakPhase"' + (hasAnswer ? '' : ' style="display:none"') + '>';
     html += '<div id="speakTimer" class="timer" aria-live="polite" style="color:var(--accent)">1:30</div>';
     html += '<button id="micBtn" class="btn" data-action="mic-toggle" aria-pressed="false" aria-label="Start recording" style="margin-top:8px;min-height:44px">🎙 Start speaking</button>';
     html += '<span id="recLabel" style="display:none;margin-left:8px" class="small muted">Recording… <span class="dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span></span>';
-    html += '<textarea id="transcript" aria-label="Your answer transcript" placeholder="Edit your transcript here" style="display:none;margin-top:12px;min-height:120px"></textarea>';
+    html += '<textarea id="transcript" aria-label="Your answer transcript" placeholder="Edit your transcript here" style="' + (hasAnswer ? '' : 'display:none;') + 'margin-top:12px;min-height:120px">' + esc(prevAns) + '</textarea>';
     html += '<div id="fillerChip" class="tag" style="display:none;margin-top:8px"></div>';
     html += '</div>';
   } else {
-    html += '<textarea id="transcript" aria-label="Your answer transcript" placeholder="Type your answer here" style="margin-top:12px;min-height:120px"></textarea>';
+    html += '<textarea id="transcript" aria-label="Your answer transcript" placeholder="Type your answer here" style="margin-top:12px;min-height:120px">' + esc(prevAns) + '</textarea>';
     html += '<div id="fillerChip" class="tag" style="display:none;margin-top:8px"></div>';
   }
 
   html += '</div>';
-  html += '<button class="btn primary" data-action="speak-submit" disabled style="width:100%;margin-top:8px">Submit answer</button>';
+  html += '<button class="btn primary" data-action="speak-submit"' + (hasAnswer ? '' : ' disabled') + ' style="width:100%;margin-top:8px">Submit answer</button>';
   container.innerHTML = html;
 }
 
-// ── Render: case step (Step 4) ────────────────────────────────────────────
+// ── Render: case step (Step 4) ────────────────────────────────────
 function renderCaseStep(container) {
   stop();
   accumulated = ''; fromSpeech = false;
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   var c = dayCase();
+  var vd = data[activeDateKey()];
+  var prevAns = (vd && vd.case && (vd.case.transcript || vd.case.text)) || '';
+  var hasAnswer = prevAns.length > 0;
 
   var html = '<div class="card">';
   html += '<div class="row"><span class="tag">~7 min</span></div>';
@@ -967,13 +1079,13 @@ function renderCaseStep(container) {
     html += '<span id="recLabel" style="display:none;margin-left:8px" class="small muted">Recording… <span class="dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span></span>';
   }
 
-  html += '<textarea id="transcript" aria-label="Your answer transcript" placeholder="' + (SR ? 'Edit your transcript here' : 'Type your answer here') + '" style="margin-top:12px;min-height:120px"></textarea>';
+  html += '<textarea id="transcript" aria-label="Your answer transcript" placeholder="' + (SR ? 'Edit your transcript here' : 'Type your answer here') + '" style="margin-top:12px;min-height:120px">' + esc(prevAns) + '</textarea>';
   html += '<div id="fillerChip" class="tag" style="display:none;margin-top:8px"></div>';
 
   html += '<button class="btn" data-action="case-reasoning" style="margin-top:8px">Show suggested reasoning</button>';
   html += '<div id="caseReasoning" style="display:none;margin-top:8px;padding:12px;background:var(--panel2);border-radius:10px"><p>' + esc(c.reasoning) + '</p></div>';
   html += '</div>';
-  html += '<button class="btn primary" data-action="case-submit" disabled style="width:100%;margin-top:8px">Submit answer</button>';
+  html += '<button class="btn primary" data-action="case-submit"' + (hasAnswer ? '' : ' disabled') + ' style="width:100%;margin-top:8px">Submit answer</button>';
   container.innerHTML = html;
 }
 
@@ -984,14 +1096,17 @@ function renderInterviewStep(container) {
   firstAnswerText = ''; firstFromSpeech = false; firstFillerCount = 0;
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   var q = dayInterview();
+  var vd = data[activeDateKey()];
+  var prevAns = (vd && vd.interview && (vd.interview.transcript || vd.interview.text)) || '';
+  var hasAnswer = prevAns.length > 0;
 
   var html = '<div class="card" id="interviewCard">';
   html += '<div class="row"><span class="tag">~5 min</span></div>';
   html += '<h2>Unexpected question</h2>';
   html += renderCheatCard(q.framework, day());
   html += '<p class="muted">Take a breath. Reveal the question when you\'re ready.</p>';
-  html += '<button class="btn primary" data-action="interview-reveal" style="width:100%;margin-top:12px">Reveal question</button>';
-  html += '<div id="questionText" style="display:none;margin-top:12px"><p><strong>' + esc(q.question) + '</strong></p></div>';
+  html += '<button class="btn primary" data-action="interview-reveal"' + (hasAnswer ? ' style="display:none;width:100%;margin-top:12px"' : ' style="width:100%;margin-top:12px"') + '>Reveal question</button>';
+  html += '<div id="questionText" style="' + (hasAnswer ? '' : 'display:none;') + 'margin-top:12px"><p><strong>' + esc(q.question) + '</strong></p></div>';
 
   // Think phase (hidden until reveal)
   html += '<div id="thinkPhase" style="display:none">';
@@ -1000,7 +1115,7 @@ function renderInterviewStep(container) {
   html += '</div>';
 
   // Speak phase (hidden until think ends)
-  html += '<div id="speakPhase" style="display:none">';
+  html += '<div id="speakPhase" style="' + (hasAnswer ? '' : 'display:none') + '">';
   html += '<div id="speakTimer" class="timer" aria-live="polite" style="color:var(--accent)">1:30</div>';
   if (SR) {
     html += '<button id="micBtn" class="btn" data-action="mic-toggle" aria-pressed="false" aria-label="Start recording" style="margin-top:8px;min-height:44px">🎙 Start speaking</button>';
@@ -1009,12 +1124,12 @@ function renderInterviewStep(container) {
     html += '<p class="small muted">Microphone not available in this browser — type your answer below.</p>';
   }
   html += renderWordChips();
-  html += '<textarea id="transcript" aria-label="Your answer transcript" placeholder="' + (SR ? 'Edit your transcript here' : 'Type your answer here') + '" style="' + (SR ? 'display:none;' : '') + 'margin-top:12px;min-height:120px"></textarea>';
+  html += '<textarea id="transcript" aria-label="Your answer transcript" placeholder="' + (SR ? 'Edit your transcript here' : 'Type your answer here') + '" style="' + (SR && !hasAnswer ? 'display:none;' : '') + 'margin-top:12px;min-height:120px">' + esc(prevAns) + '</textarea>';
   html += '<div id="fillerChip" class="tag" style="display:none;margin-top:8px"></div>';
   html += '</div>';
 
   html += '</div>'; // end #interviewCard
-  html += '<button class="btn primary" data-action="interview-submit" disabled style="width:100%;margin-top:8px">Submit answer</button>';
+  html += '<button class="btn primary" data-action="interview-submit"' + (hasAnswer ? '' : ' disabled') + ' style="width:100%;margin-top:8px">Submit answer</button>';
   container.innerHTML = html;
 }
 
@@ -1029,8 +1144,9 @@ var STEPS = {
 
 // ── Core ──────────────────────────────────────────────────────────────────
 function saveStepAnswer(stepId, answerObj) {
-  var vd = data['d-' + todayStr];
-  if (!vd) vd = data['d-' + todayStr] = { step: 0, complete: false };
+  var vd = data[activeDateKey()];
+  if (!vd) vd = data[activeDateKey()] = { step: 0, complete: false, dayNumber: day() };
+  vd.dayNumber = day();
   vd[stepId] = answerObj;
   save();
 }
@@ -1046,9 +1162,11 @@ function answerSaved(btn) {
 }
 
 function goToStep(n) {
-  var vd = data['d-' + todayStr];
-  if (!vd) vd = data['d-' + todayStr] = { step: 0, complete: false };
+  var vd = data[activeDateKey()];
+  if (!vd) vd = data[activeDateKey()] = { step: 0, complete: false, dayNumber: day() };
   vd.step = n;
+  vd.dayNumber = day();
+  if (!vd.maxStep || n > vd.maxStep) vd.maxStep = n;
   if (n > 5) {
     vd.complete = true;
     // Store lesson concept for tomorrow's teach-back (LEARN-08)
@@ -1062,25 +1180,27 @@ function goToStep(n) {
 }
 
 function renderApp() {
-  var dayData = data['d-' + todayStr] || null;
+  var dayData = data[activeDateKey()] || null;
   var container = document.getElementById('journey');
   if (!container) return;
 
+  var topToolbar = renderTopToolbar();
+
   if (dayData && dayData.complete) {
-    container.innerHTML = renderStepper(5) + renderSummary(dayData);
+    container.innerHTML = topToolbar + renderStepper(5) + renderSummary(dayData);
     return;
   }
 
   var step = (dayData && dayData.step) || 0;
 
   if (!dayData || step === 0) {
-    container.innerHTML = renderEntry(dayData);
+    container.innerHTML = topToolbar + renderEntry(dayData);
     return;
   }
 
   var stepIdx = step - 1;
   var stepName = STEP_NAMES[stepIdx] || STEP_NAMES[4];
-  container.innerHTML = renderStepper(stepIdx) + '<div id="stepContent"></div>' + renderFeedbackSlot(stepName);
+  container.innerHTML = topToolbar + renderStepper(stepIdx) + '<div id="stepContent"></div>' + renderFeedbackSlot(stepName);
   if (stepName === 'vocab') {
     renderVocab(document.getElementById('stepContent'));
   } else if (stepName === 'recall') {
@@ -1097,15 +1217,63 @@ document.addEventListener('click', function(e) {
   var el = e.target.closest('[data-action]');
   if (!el) return;
   var action = el.dataset.action;
-  var dayData = data['d-' + todayStr] || { step: 0, complete: false };
+  var dayData = data[activeDateKey()] || { step: 0, complete: false };
   var currentStep = dayData.step || 0;
   var stepIdx = currentStep - 1;
   var stepName = STEP_NAMES[stepIdx] || '';
 
+  if (action === 'return-today') {
+    delete data.viewDay;
+    save();
+    renderApp();
+    return;
+  }
+
+  if (action === 'day-restart' || action === 'day-retake') {
+    var dNum = activeDayNum();
+    var isPast = (dNum !== currentDayNum());
+    var msg = isPast
+      ? ('Retake Day ' + dNum + ' from the beginning? Your existing answers for Day ' + dNum + ' will be reset, but other days will not be affected.')
+      : ('Restart Day ' + dNum + ' from Step 1? Your answers for today will be reset.');
+    if (confirm(msg)) {
+      stop();
+      var key = activeDateKey();
+      data[key] = { step: 0, complete: false, dayNumber: dNum };
+      save();
+      goToStep(1);
+    }
+    return;
+  }
+
+  if (action === 'stepper-step') {
+    var targetStep = parseInt(el.dataset.step, 10);
+    if (targetStep >= 1 && targetStep <= 5) {
+      goToStep(targetStep);
+    }
+    return;
+  }
+
+  if (action === 'view-summary') {
+    goToStep(6);
+    return;
+  }
+
+  if (action === 'grid-day-click') {
+    var targetDay = parseInt(el.dataset.day, 10);
+    if (targetDay === currentDayNum()) {
+      delete data.viewDay;
+    } else {
+      data.viewDay = targetDay;
+    }
+    save();
+    renderApp();
+    return;
+  }
+
   if (action === 'journey-start') {
-    if (!data['d-' + todayStr]) data['d-' + todayStr] = { step: 0, complete: false };
+    if (!data[activeDateKey()]) data[activeDateKey()] = { step: 0, complete: false, dayNumber: day() };
     stop();
-    var savedStep = data['d-' + todayStr].step || 0;
+    var savedStep = data[activeDateKey()].step || 0;
     if (day() > 30 && !dayPack()) {
       el.disabled = true; el.textContent = 'Preparing today\'s fresh practice…';
       buildEndlessDay().then(function() { goToStep(savedStep > 0 ? savedStep : 1); });
@@ -1150,7 +1318,7 @@ document.addEventListener('click', function(e) {
   if (action === 'save-reflection') {
     var rfEl = document.getElementById('reflectionText');
     if (!rfEl) return;
-    var vdRef = data['d-' + todayStr];
+    var vdRef = data[activeDateKey()];
     if (!vdRef) return;
     vdRef.reflection = rfEl.value.trim();
     save();
@@ -1178,7 +1346,8 @@ document.addEventListener('click', function(e) {
     var tbEl = document.getElementById('teachbackText');
     if (!tbEl || !tbEl.value.trim()) return;
     el.disabled = true; el.textContent = 'Checking…';
-    var ydTb = data['d-' + LOGIC.addDays(todayStr, -1)];
+    var prevKeyTb = day() > 1 ? dateKeyForDay(day() - 1) : null;
+    var ydTb = prevKeyTb ? data[prevKeyTb] : null;
     var conceptTb = (ydTb && ydTb.lesson && ydTb.lesson.concept) || '';
     var tbPayload = LOGIC.buildCoachPayload('teachback', { concept: conceptTb, answer: tbEl.value.trim() });
     workerCall('coach', tbPayload).then(function(res) {
@@ -1219,7 +1388,7 @@ document.addEventListener('click', function(e) {
     if (!data.vocab) data.vocab = {};
     if (!data.vocab[termId]) data.vocab[termId] = LOGIC.initWord(termId, todayStr);
     data.vocab[termId] = LOGIC.advanceLeitner(data.vocab[termId], vocabResult, todayStr);
-    var vd = data['d-' + todayStr];
+    var vd = data[activeDateKey()];
     if (!vd.vocab) vd.vocab = { newWords: [], reviewWords: [], sentences: {}, results: {} };
     vd.vocab.sentences[termId] = sentence;
     vd.vocab.results[termId] = vocabResult;
@@ -1485,7 +1654,7 @@ document.addEventListener('click', function(e) {
   if (action === 'try-again') {
     var taStepId = el.dataset.stepId;
     el.style.display = 'none';
-    var vdTry = data['d-' + todayStr];
+    var vdTry = data[activeDateKey()];
     var tryFix = (vdTry && vdTry[taStepId] && vdTry[taStepId].aiFeedback && vdTry[taStepId].aiFeedback.fix) || '';
     var retryDiv = '<div id="retryArea" style="margin-top:12px">';
     retryDiv += '<textarea id="retryTranscript" placeholder="Try incorporating: ' + esc(tryFix) + '" aria-label="Retry answer" style="min-height:120px"></textarea>';
@@ -1500,7 +1669,7 @@ document.addEventListener('click', function(e) {
     var rtEl = document.getElementById('retryTranscript');
     if (!rtEl || !rtEl.value.trim()) return;
     var retryText = rtEl.value.trim();
-    var vdRetry = data['d-' + todayStr];
+    var vdRetry = data[activeDateKey()];
     if (!vdRetry || !vdRetry[rsStepId]) return;
     var sd = vdRetry[rsStepId];
     var retryPayload = LOGIC.buildCoachPayload('retry', {
@@ -1528,7 +1697,7 @@ document.addEventListener('click', function(e) {
   // ── Show model answer (LEARN-04) ──
   if (action === 'show-model-answer') {
     var smaStepId = el.dataset.stepId;
-    var vdModel = data['d-' + todayStr];
+    var vdModel = data[activeDateKey()];
     if (!vdModel || !vdModel[smaStepId]) return;
     var smd = vdModel[smaStepId];
     el.disabled = true; el.textContent = 'Loading…';
@@ -1590,11 +1759,42 @@ document.addEventListener('click', function(e) {
   }
 });
 
-// ── Profile selector change delegation ───────────────────────────────────
+// ── Profile & Day navigation selector change delegation ──────────────────
 document.addEventListener('change', function(e) {
   if (e.target && e.target.id === 'resumeProfileSelect') {
     localStorage.setItem('recallResumeProfile', e.target.value);
     renderApp();
+    return;
+  }
+  if (e.target && e.target.id === 'dayNavSelect') {
+    var val = e.target.value;
+    if (val === 'jump') {
+      var maxPossible = Math.max(currentDayNum(), activeDayNum()) + 10;
+      var target = prompt('Enter day number to visit (1 to ' + maxPossible + '):', String(activeDayNum()));
+      if (target && !isNaN(+target) && +target >= 1) {
+        var tNum = Math.floor(+target);
+        if (tNum === currentDayNum()) {
+          delete data.viewDay;
+        } else {
+          data.viewDay = tNum;
+        }
+        save();
+        renderApp();
+      } else {
+        renderApp();
+      }
+      return;
+    }
+    var targetDay = parseInt(val, 10);
+    if (!isNaN(targetDay) && targetDay >= 1) {
+      if (targetDay === currentDayNum()) {
+        delete data.viewDay;
+      } else {
+        data.viewDay = targetDay;
+      }
+      save();
+      renderApp();
+    }
   }
 });
 
