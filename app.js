@@ -370,7 +370,7 @@ async function extractPDF(file) {
 var SAITEJA_RESUME = 
   "SAITEJA TIRUNAGARI\n" +
   "AI-First Product Manager • 0→1 Builder • 6+ Years • Hyderabad, India\n" +
-  "saitejatirunagari@gmail.com | linkedin.com/in/saiteja-tirunagari | saitejatirunagari.in\n\n" +
+  "Contact details on file • Hyderabad, India\n\n" +
   "SUMMARY\n" +
   "AI-first Product Manager and former EdTech founder shipping 0→1 products at scale: acquisition funnels, LLM-powered platforms, " +
   "and high-volume automation serving 1M+ users, 100K+ payments, and a ₹1,120+ Cr annual pipeline. Architected LLM evaluation " +
@@ -627,6 +627,165 @@ function renderEntry(dayData) {
   return html;
 }
 
+// ── Render: daily performance report (Phase 5) ───────────────────────────
+function renderDailyReport(dayData, dayNum) {
+  if (!dayData || typeof LOGIC === 'undefined' || !LOGIC.computeDayReport) return '';
+  var rpt = LOGIC.computeDayReport(dayData);
+  if (!rpt) return '';
+
+  var html = '<div class="card" style="margin:16px 0;border:1px solid var(--accent);background:var(--panel2)">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;border-bottom:1px solid var(--line);padding-bottom:12px">';
+  html += '<div><h2 style="margin:0;font-size:20px">&#128202; Day ' + esc(String(dayNum)) + ' Performance Report</h2>';
+  html += '<span class="small muted">Detailed breakdown of answers, feedback, strengths &amp; rectifications</span></div>';
+  if (rpt.averageScore !== null) {
+    var scoreColor = rpt.averageScore >= 7 ? 'var(--green)' : (rpt.averageScore >= 5 ? 'var(--accent)' : 'var(--muted)');
+    html += '<div style="text-align:right">';
+    html += '<div style="font-size:26px;font-weight:850;color:' + scoreColor + '">' + esc(String(rpt.averageScore)) + '<span style="font-size:16px;color:var(--muted)"> / 10</span></div>';
+    html += '<span class="small muted">Average AI Score</span>';
+    html += '</div>';
+  }
+  html += '</div>';
+
+  // Metrics summary row
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:10px;margin-bottom:16px">';
+  html += '<div style="background:var(--panel);padding:10px;border-radius:10px;border:1px solid var(--line);text-align:center">';
+  html += '<div style="font-size:20px;font-weight:800;color:var(--text)">' + rpt.scoredCount + ' / 3</div>';
+  html += '<div class="small muted">Answers Coached</div></div>';
+
+  html += '<div style="background:var(--panel);padding:10px;border-radius:10px;border:1px solid var(--line);text-align:center">';
+  html += '<div style="font-size:20px;font-weight:800;color:' + (rpt.totalFillers === 0 ? 'var(--green)' : 'var(--text)') + '">' + rpt.totalFillers + '</div>';
+  html += '<div class="small muted">Filler Words</div></div>';
+
+  html += '<div style="background:var(--panel);padding:10px;border-radius:10px;border:1px solid var(--line);text-align:center">';
+  html += '<div style="font-size:20px;font-weight:800;color:' + (rpt.rectifiedCount > 0 ? 'var(--green)' : 'var(--muted)') + '">' + rpt.rectifiedCount + ' / ' + rpt.retriedCount + '</div>';
+  html += '<div class="small muted">Retries Rectified</div></div>';
+
+  html += '<div style="background:var(--panel);padding:10px;border-radius:10px;border:1px solid var(--line);text-align:center">';
+  html += '<div style="font-size:20px;font-weight:800;color:var(--text)">' + (dayData.vocab && dayData.vocab.newWords ? dayData.vocab.newWords.length : 0) + '</div>';
+  html += '<div class="small muted">Vocab Words</div></div>';
+  html += '</div>';
+
+  // 1. What Landed (Strengths / Good things done)
+  if (rpt.strengths.length > 0) {
+    html += '<div style="margin-bottom:16px;background:var(--panel);padding:14px;border-radius:12px;border-left:4px solid var(--green)">';
+    html += '<h3 style="margin:0 0 8px;font-size:15px;color:var(--green)">&#10003; What Landed (Your Strengths)</h3>';
+    html += '<ul style="margin:0;padding-left:18px;line-height:1.6">';
+    rpt.strengths.forEach(function(st) {
+      html += '<li><strong>' + esc(st.step.toUpperCase()) + ':</strong> ' + esc(st.text) + '</li>';
+    });
+    html += '</ul>';
+    html += '</div>';
+  }
+
+  // 2. Step-by-Step Analysis (What you gave, mistakes, fixes, and rectifications)
+  if (rpt.stepAnalyses.length > 0) {
+    html += '<h3 style="margin:16px 0 10px;font-size:16px">Mistakes &amp; How to Improve</h3>';
+    rpt.stepAnalyses.forEach(function(sa) {
+      var stepTitle = sa.step === 'speak' ? 'Step 3: Spoken Answer' : (sa.step === 'case' ? 'Step 4: Product Case' : 'Step 5: Unexpected Interview');
+      html += '<div class="card" style="margin-bottom:14px;background:var(--panel);border:1px solid var(--line);padding:14px">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px">';
+      html += '<div><strong>' + esc(stepTitle) + '</strong> <span class="tag" style="margin-left:6px">' + esc(sa.framework) + '</span></div>';
+      if (sa.score !== null) {
+        html += '<span class="tag" style="background:var(--accent);color:#101827;font-weight:700">' + esc(String(sa.score)) + '/10</span>';
+      }
+      html += '</div>';
+      if (sa.question) {
+        html += '<p class="small muted" style="margin:4px 0 10px"><em>Prompt: ' + esc(sa.question) + '</em></p>';
+      }
+
+      // What you gave
+      if (sa.userAnswer) {
+        html += '<div style="margin:8px 0;background:var(--bg);padding:10px 12px;border-radius:8px;border:1px solid var(--line)">';
+        html += '<div class="small muted" style="font-weight:600;margin-bottom:4px">&#128483; What you gave:</div>';
+        html += '<p style="margin:0;font-size:13px;line-height:1.5">' + esc(sa.userAnswer) + '</p>';
+        if (sa.followupText) {
+          html += '<p style="margin:6px 0 0;font-size:13px;color:var(--muted)"><em>Follow-up:</em> ' + esc(sa.followupText) + '</p>';
+        }
+        html += '</div>';
+      }
+
+      // Mistake / One fix
+      if (sa.fix) {
+        html += '<div style="margin:8px 0;padding:10px 12px;background:rgba(239, 68, 68, 0.08);border-left:3px solid #ef4444;border-radius:0 8px 8px 0">';
+        html += '<div style="color:#f87171;font-weight:600;font-size:12px">&#9888; What went wrong / Needs fix:</div>';
+        html += '<p style="margin:4px 0 0;font-size:13px">' + esc(sa.fix) + '</p>';
+        html += '</div>';
+      }
+
+      // How to improve / rewritten line
+      if (sa.betterLine) {
+        html += '<div style="margin:8px 0;padding:10px 12px;background:rgba(98, 214, 164, 0.08);border-left:3px solid var(--green);border-radius:0 8px 8px 0">';
+        html += '<div style="color:var(--green);font-weight:600;font-size:12px">&#9733; How to improve (Model phrasing):</div>';
+        html += '<p style="margin:4px 0 0;font-size:13px;font-style:italic">"' + esc(sa.betterLine) + '"</p>';
+        html += '</div>';
+      }
+
+      // Rectification (Try-again comparison)
+      if (sa.retry && sa.retry.text) {
+        var isImp = sa.retry.improved;
+        html += '<div style="margin-top:10px;padding:10px 12px;background:var(--panel2);border:1px solid ' + (isImp ? 'var(--green)' : 'var(--line)') + ';border-radius:8px">';
+        html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">';
+        html += '<span class="tag" style="' + (isImp ? 'background:var(--green);color:#101827;font-weight:700' : 'background:var(--line)') + '">' + (isImp ? '&#10003; Mistake Rectified' : 'Retry Submitted') + '</span>';
+        if (sa.retry.fix) html += '<span class="small muted">' + esc(sa.retry.fix) + '</span>';
+        html += '</div>';
+        html += '<div class="small" style="font-size:12px;color:var(--muted)"><strong>Retry attempt:</strong> ' + esc(sa.retry.text) + '</div>';
+        if (sa.retry.betterLine) {
+          html += '<div class="small" style="margin-top:4px;color:var(--green)">' + esc(sa.retry.betterLine) + '</div>';
+        }
+        html += '</div>';
+      }
+
+      html += '</div>';
+    });
+  }
+
+  // 3. Vocab Sentences & AI Corrections
+  if (rpt.vocabItems.length > 0) {
+    html += '<h3 style="margin:16px 0 10px;font-size:16px">Vocabulary Check</h3>';
+    html += '<div class="card" style="margin-bottom:14px;background:var(--panel);border:1px solid var(--line);padding:14px">';
+    rpt.vocabItems.forEach(function(v) {
+      var term = findTermById(v.id);
+      var termName = term ? term.term : v.id;
+      var isCorrect = v.aiVerdict === 'correct' || (v.aiVerdict === null && v.localVerdict === 'correct');
+      html += '<div style="padding:8px 0;border-bottom:1px solid var(--line)">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center">';
+      html += '<strong>' + esc(termName) + '</strong>';
+      html += '<span class="tag" style="' + (isCorrect ? 'color:var(--green);border-color:var(--green)' : 'color:var(--accent);border-color:var(--accent)') + '">' + (isCorrect ? '&#10003; Correct' : 'Review needed') + '</span>';
+      html += '</div>';
+      html += '<p style="margin:4px 0 2px;font-size:13px"><em>Your sentence:</em> ' + esc(v.sentence) + '</p>';
+      if (v.correctedSentence) {
+        html += '<p class="small" style="margin:2px 0 0;color:var(--accent)">Suggested: ' + esc(v.correctedSentence) + '</p>';
+      }
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+
+  // 4. Teach-Back Analysis
+  if (rpt.teachback && rpt.teachback.answer) {
+    html += '<h3 style="margin:16px 0 10px;font-size:16px">Teach-Back Explanation</h3>';
+    html += '<div class="card" style="margin-bottom:14px;background:var(--panel);border:1px solid var(--line);padding:14px">';
+    if (rpt.teachback.concept) html += '<p class="small muted" style="margin:0 0 6px">Concept: <strong>' + esc(rpt.teachback.concept) + '</strong></p>';
+    html += '<p style="margin:0 0 8px;font-size:13px"><strong>Your explanation:</strong> ' + esc(rpt.teachback.answer) + '</p>';
+    if (rpt.teachback.gaps && rpt.teachback.gaps.length > 0) {
+      html += '<div style="margin:6px 0;color:#f87171;font-size:12px"><strong>Gaps identified:</strong> ' + rpt.teachback.gaps.map(esc).join(', ') + '</div>';
+    }
+    if (rpt.teachback.betterExplanation) {
+      html += '<div style="margin-top:6px;border-left:3px solid var(--accent);padding:6px 10px;background:var(--panel2);font-size:12px">' + esc(rpt.teachback.betterExplanation) + '</div>';
+    }
+    html += '</div>';
+  }
+
+  // Report actions: Print & Copy Summary
+  html += '<div class="row" style="margin-top:14px;justify-content:flex-end">';
+  html += '<button class="btn small" data-action="print-report" style="font-size:12px">&#128438; Print / Save PDF</button>';
+  html += '<button class="btn small" data-action="copy-report" style="font-size:12px">&#128203; Copy Report Summary</button>';
+  html += '</div>';
+
+  html += '</div>';
+  return html;
+}
+
 // ── Render: day summary ───────────────────────────────────────────────────
 function isReviewDay() { return LOGIC.isReviewDayNum(day(), LESSONS); }
 
@@ -642,6 +801,8 @@ function renderSummary(dayData) {
   html += '<span>· ' + learnedCount + ' word' + (learnedCount === 1 ? '' : 's') + ' learned</span>';
   html += '<span>· Streak: ' + streak + ' day' + (streak === 1 ? '' : 's') + '</span>';
   html += '</div>';
+
+  html += renderDailyReport(dayData, day());
 
   html += '<div class="card">';
   if (newWords.length === 0) {
@@ -801,11 +962,18 @@ function renderCoachFeedback(stepId, res) {
   var af = document.getElementById('aiFeedback');
   if (!af) return;
   if (!res || !LOGIC.validateCoachResponse(res)) { showSelfCheckFallback(stepId); return; }
-  // Store aiFeedback
+  // Store full aiFeedback (Phase 5)
   var vd = data[activeDateKey()];
   if (!vd) return;
   if (!vd[stepId]) vd[stepId] = {};
-  vd[stepId].aiFeedback = { score: res.score, fix: res.fix, tags: res.tags || [], wordsUsed: res.wordsUsed || [] };
+  vd[stepId].aiFeedback = {
+    score: res.score,
+    landed: res.landed || '',
+    fix: res.fix || '',
+    betterLine: res.betterLine || '',
+    tags: res.tags || [],
+    wordsUsed: res.wordsUsed || []
+  };
   save();
   var html = '<div style="margin-top:12px">';
   html += '<div class="row" style="margin-bottom:8px">';
@@ -837,6 +1005,7 @@ function runVocabAICheck() {
   var payload = LOGIC.buildCoachPayload('vocab', { sentences: sentences });
   workerCall('coach', payload).then(function(res) {
     if (!res || !Array.isArray(res.results)) return;
+    var curVd = data[activeDateKey()];
     res.results.forEach(function(r) {
       var fb = document.getElementById('fb-' + r.id);
       if (fb) {
@@ -844,11 +1013,18 @@ function runVocabAICheck() {
           ? '<span style="color:var(--green);font-weight:700">&#10003; Correct (AI verified)</span>'
           : '<span class="muted small">' + esc(r.correctedSentence || 'Review needed') + '</span>';
       }
+      if (curVd && curVd.vocab) {
+        if (!curVd.vocab.aiResults) curVd.vocab.aiResults = {};
+        curVd.vocab.aiResults[r.id] = {
+          verdict: r.verdict,
+          correctedSentence: r.correctedSentence || ''
+        };
+      }
       if (data.vocab && data.vocab[r.id]) {
         data.vocab[r.id] = LOGIC.advanceLeitner(data.vocab[r.id], r.verdict, todayStr);
-        save();
       }
     });
+    save();
   }).catch(function() { /* fire-and-forget: vocab step completion not gated on AI */ });
 }
 
@@ -1229,6 +1405,35 @@ document.addEventListener('click', function(e) {
     return;
   }
 
+  if (action === 'print-report') {
+    window.print();
+    return;
+  }
+
+  if (action === 'copy-report') {
+    var curDayData = data[activeDateKey()];
+    if (!curDayData || typeof LOGIC === 'undefined' || !LOGIC.computeDayReport) return;
+    var r = LOGIC.computeDayReport(curDayData);
+    if (!r) return;
+    var summary = 'RECALL Day ' + day() + ' Performance Report\n' +
+      'Score: ' + (r.averageScore !== null ? r.averageScore + '/10' : 'N/A') + '\n' +
+      'Fillers: ' + r.totalFillers + '\n' +
+      'Retries Rectified: ' + r.rectifiedCount + '/' + r.retriedCount + '\n\n' +
+      'STRENGTHS:\n' + (r.strengths.length ? r.strengths.map(function(s){ return '• ' + s.step.toUpperCase() + ': ' + s.text; }).join('\n') : 'None recorded') + '\n\n' +
+      'MISTAKES & FIXES:\n' + (r.fixes.length ? r.fixes.map(function(f){ return '• ' + f.step.toUpperCase() + ': ' + f.fix + (f.betterLine ? '\n  Suggested: ' + f.betterLine : ''); }).join('\n') : 'None recorded');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(summary).then(function() {
+        el.textContent = 'Copied ✓';
+        setTimeout(function() { el.textContent = '\uD83D\uDCCB Copy Report Summary'; }, 2000);
+      }).catch(function() {
+        prompt('Copy your report summary:', summary);
+      });
+    } else {
+      prompt('Copy your report summary:', summary);
+    }
+    return;
+  }
+
   if (action === 'day-restart' || action === 'day-retake') {
     var dNum = activeDayNum();
     var isPast = (dNum !== currentDayNum());
@@ -1367,6 +1572,17 @@ document.addEventListener('click', function(e) {
           tbHtml = '<p class="small muted">AI unavailable — good effort.</p>';
         }
         tbResult.innerHTML = tbHtml;
+      }
+      var curVd = data[activeDateKey()];
+      if (curVd) {
+        if (!curVd.recall) curVd.recall = {};
+        curVd.recall.teachback = {
+          concept: conceptTb,
+          answer: tbEl.value.trim(),
+          gaps: (res && Array.isArray(res.gaps)) ? res.gaps : [],
+          betterExplanation: (res && typeof res.betterExplanation === 'string') ? res.betterExplanation : ''
+        };
+        save();
       }
       el.disabled = false; el.textContent = 'Submit';
     }).catch(function() {
@@ -1690,6 +1906,13 @@ document.addEventListener('click', function(e) {
       var ra = document.getElementById('retryArea');
       if (ra) ra.insertAdjacentHTML('beforeend', rHtml);
       el.remove();
+      sd.retry = {
+        text: retryText,
+        improved: !!(res && res.improved),
+        fix: (res && res.fix) || '',
+        betterLine: (res && res.betterLine) || ''
+      };
+      save();
     }).catch(function() { el.disabled = false; el.textContent = 'Submit retry'; });
     return;
   }

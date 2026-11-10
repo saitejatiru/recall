@@ -364,4 +364,72 @@ assert.equal(L.remixDay(31, c, st, []).words[0].id, 'w13', 'remix picks weakest 
 var seenAll = L.collectSeen(c, { '31': v });
 assert.ok(seenAll.terms.indexOf('Term 0') >= 0 && seenAll.questions.indexOf('New case') >= 0, 'collectSeen includes packs');
 
+// ── computeDayReport (Phase 5) ───────────────────────────────────────────
+assert.equal(L.computeDayReport(null), null, 'null dayData returns null');
+var sampleDay = {
+  dayNumber: 3,
+  vocab: {
+    sentences: { 'v1': 'User story for checkout', 'v2': 'Acceptance criteria defined' },
+    results: { 'v1': 'correct', 'v2': 'correct' },
+    aiResults: {
+      'v1': { verdict: 'correct', correctedSentence: '' },
+      'v2': { verdict: 'review', correctedSentence: 'The acceptance criteria were defined by the PM.' }
+    }
+  },
+  recall: {
+    teachback: {
+      answer: 'JTBD explains why customers buy products.',
+      gaps: ['Mention emotional vs functional jobs'],
+      betterExplanation: 'JTBD focuses on the underlying progress a user is trying to make.'
+    }
+  },
+  speak: {
+    question: 'How would you measure success?',
+    framework: 'STAR',
+    transcript: 'I measured success by looking at North Star metric.',
+    fillerCount: 2,
+    aiFeedback: {
+      score: 7,
+      landed: 'Clear opening framework and crisp metric choice',
+      fix: 'Tie the metric directly to business impact',
+      betterLine: 'At NxtWave, I tracked 0-60 min payment conversion lifting from 27% to 63%.',
+      tags: ['no-impact'],
+      wordsUsed: ['northStarMetric']
+    },
+    retry: {
+      text: 'I measured success by lifting 0-60 min conversion from 27% to 63%.',
+      improved: true,
+      fix: 'Strong metric integration',
+      betterLine: ''
+    }
+  },
+  case: {
+    question: 'Design an app for runners',
+    framework: 'CIRCLES',
+    text: 'First I would segment users into casual vs marathoners.',
+    fillerCount: 1,
+    aiFeedback: {
+      score: 8,
+      landed: 'Great segmentation and user persona empathy',
+      fix: 'Prioritize one segment before detailing features',
+      betterLine: 'I will prioritize casual runners who need habit formation.',
+      tags: ['generic'],
+      wordsUsed: ['userPersona']
+    }
+  }
+};
+
+var rpt = L.computeDayReport(sampleDay);
+assert.ok(rpt, 'report generated');
+assert.equal(rpt.averageScore, 7.5, 'average score computed correctly (7+8)/2 = 7.5');
+assert.equal(rpt.totalFillers, 3, 'total fillers summed (2+1 = 3)');
+assert.equal(rpt.retriedCount, 1, 'retried count = 1');
+assert.equal(rpt.rectifiedCount, 1, 'rectified count = 1');
+assert.equal(rpt.strengths.length, 2, '2 strengths extracted');
+assert.equal(rpt.fixes.length, 2, '2 fixes extracted');
+assert.equal(rpt.vocabItems.length, 2, '2 vocab items');
+assert.equal(rpt.vocabItems[1].aiVerdict, 'review', 'aiVerdict mapped');
+assert.ok(rpt.teachback && rpt.teachback.gaps.length === 1, 'teachback gaps mapped');
+assert.ok(rpt.stepAnalyses[0].retry && rpt.stepAnalyses[0].retry.improved, 'step retry improved true');
+
 console.log('logic self-check: all passed');

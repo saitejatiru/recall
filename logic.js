@@ -378,6 +378,88 @@
 
   // ── Exports ───────────────────────────────────────────────────────────────
 
+  // ── Performance report aggregation (Phase 5) ───────────────────────────
+  function computeDayReport(dayData) {
+    if (!dayData) return null;
+    var steps = ['speak', 'case', 'interview'];
+    var scores = [];
+    var totalFillers = 0;
+    var retriedCount = 0;
+    var rectifiedCount = 0;
+    var strengths = [];
+    var fixes = [];
+    var stepAnalyses = [];
+
+    steps.forEach(function(sKey) {
+      var s = dayData[sKey];
+      if (!s) return;
+      if (typeof s.fillerCount === 'number') totalFillers += s.fillerCount;
+      var fb = s.aiFeedback || null;
+      var ret = s.retry || null;
+      if (fb && typeof fb.score === 'number') scores.push(fb.score);
+      if (fb && fb.landed) strengths.push({ step: sKey, text: fb.landed });
+      if (fb && fb.fix) fixes.push({ step: sKey, fix: fb.fix, betterLine: fb.betterLine });
+      if (ret) {
+        retriedCount++;
+        if (ret.improved) rectifiedCount++;
+      }
+      stepAnalyses.push({
+        step: sKey,
+        question: s.question || '',
+        framework: s.framework || '',
+        userAnswer: s.transcript || s.text || '',
+        followupText: s.followupText || '',
+        score: fb ? fb.score : null,
+        landed: fb ? fb.landed : '',
+        fix: fb ? fb.fix : '',
+        betterLine: fb ? fb.betterLine : '',
+        tags: fb ? (fb.tags || []) : [],
+        wordsUsed: fb ? (fb.wordsUsed || []) : [],
+        retry: ret ? {
+          text: ret.text || '',
+          improved: !!ret.improved,
+          fix: ret.fix || '',
+          betterLine: ret.betterLine || ''
+        } : null
+      });
+    });
+
+    var avgScore = scores.length > 0
+      ? Math.round((scores.reduce(function(a, b) { return a + b; }, 0) / scores.length) * 10) / 10
+      : null;
+
+    var vocab = dayData.vocab || {};
+    var vocabItems = [];
+    var sents = vocab.sentences || {};
+    var results = vocab.results || {};
+    var aiResults = vocab.aiResults || {};
+    Object.keys(sents).forEach(function(termId) {
+      vocabItems.push({
+        id: termId,
+        sentence: sents[termId],
+        localVerdict: results[termId] || 'saved',
+        aiVerdict: aiResults[termId] ? aiResults[termId].verdict : null,
+        correctedSentence: aiResults[termId] ? aiResults[termId].correctedSentence : null
+      });
+    });
+
+    var recall = dayData.recall || {};
+    var teachback = recall.teachback || null;
+
+    return {
+      averageScore: avgScore,
+      scoredCount: scores.length,
+      totalFillers: totalFillers,
+      retriedCount: retriedCount,
+      rectifiedCount: rectifiedCount,
+      strengths: strengths,
+      fixes: fixes,
+      stepAnalyses: stepAnalyses,
+      vocabItems: vocabItems,
+      teachback: teachback
+    };
+  }
+
   exports.today = today;
   exports.addDays = addDays;
   exports.initWord = initWord;
@@ -399,5 +481,6 @@
   exports.collectSeen = collectSeen;
   exports.validateGeneratedDay = validateGeneratedDay;
   exports.remixDay = remixDay;
+  exports.computeDayReport = computeDayReport;
 
 })(typeof module !== 'undefined' ? module.exports : (window.LOGIC = window.LOGIC || {}));
