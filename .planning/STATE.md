@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 2
 current_phase_name: Journey Shell
 status: executing
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-11-10T06:03:15.494Z"
+stopped_at: Completed 02-02-PLAN.md
+last_updated: "2026-11-10T06:27:44.413Z"
 last_activity: 2026-11-10
 last_activity_desc: Phase 2 execution started
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 6
-  completed_plans: 4
+  completed_plans: 5
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 2 (Journey Shell) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-11-10 — Phase 2 execution started
 
-Progress: [███████░░░] 67%
+Progress: [████████░░] 83%
 
 ## Performance Metrics
 
@@ -62,6 +62,7 @@ Progress: [███████░░░] 67%
 | Phase 01-proxy-hosting P02 | session | 3 tasks | 2 files |
 | Phase 01-proxy-hosting P03 | ~15min | 5 tasks | 5 files |
 | Phase 02 P01 | 22min | 3 tasks | 6 files |
+| Phase 02 P02 | 20min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -82,6 +83,8 @@ Recent decisions affecting current work:
 - [Phase ?]: UMD wrapper for logic.js: browser sets window.LOGIC, Node uses module.exports — zero-build dual-use
 - [Phase ?]: app.js stub created for passcode modal, AI status bar, and LOGIC.migrate — Plan 02-02 replaces journey placeholder
 - [Phase ?]: checkVocab strips parentheticals before term matching so JTBD-style terms match on bare term
+- [Phase ?]: 1-indexed journey steps: step=1=vocab through step=5=interview; n>5 triggers complete
+- [Phase ?]: renderFeedbackSlot called once in renderApp for all active steps
 
 ### Pending Todos
 
@@ -94,6 +97,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-11-10T06:03:15.472Z
-Stopped at: Completed 02-01-PLAN.md
+Last session: 2026-11-10T06:27:44.400Z
+Stopped at: Completed 02-02-PLAN.md
 Resume file: None

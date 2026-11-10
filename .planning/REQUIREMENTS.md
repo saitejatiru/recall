@@ -9,7 +9,7 @@
 
 - [x] **JRNY-01**: User sees one page (no tabs) with today's journey as ordered steps and a progress bar
 - [x] **JRNY-02**: User can close the browser mid-journey and continue at the same step when they come back
-- [ ] **JRNY-03**: When all steps are done, user sees a day summary: scores, words learned, top weak spots
+- [x] **JRNY-03**: When all steps are done, user sees a day summary: scores, words learned, top weak spots
 - [x] **JRNY-04**: User sees their current streak (survives one missed day) and a 30-day progress grid
 - [x] **JRNY-05**: Each step shows a time hint, and a full day takes 20–30 minutes
 - [x] **JRNY-06**: Progress saved by the old version of the app is still there after the upgrade
@@ -23,7 +23,7 @@
 
 ### Practice
 
-- [ ] **PRAC-01**: Recall step: user writes from memory what they learned yesterday (words and the main fix), then sees what they missed
+- [x] **PRAC-01**: Recall step: user writes from memory what they learned yesterday (words and the main fix), then sees what they missed
 - [ ] **PRAC-02**: Speaking step: 30 s think + 90 s timed spoken answer to the day's prompt; the transcript appears after speaking and can be edited before submitting
 - [ ] **PRAC-03**: If speech recognition is not available, the user can type every answer instead (one-line notice, no error)
 - [ ] **PRAC-04**: Case step: one product case per day that the user answers (spoken or typed)
@@ -37,7 +37,7 @@
 - [ ] **COACH-03**: Better lines use the user's resume projects and numbers, and never invent facts that are not in the resume
 - [ ] **COACH-04**: Scores follow one fixed rubric (structure, clarity, PM vocabulary, metrics, impact, conciseness), so they are comparable across days, and feedback does not open with empty praise
 - [ ] **COACH-05**: When the coach notices a missed chance, it names a PM word the user has already learned that would have fit
-- [ ] **COACH-06**: If the AI is unavailable or slow, the user can self-check with a checklist and continue; the AI never blocks the day
+- [x] **COACH-06**: If the AI is unavailable or slow, the user can self-check with a checklist and continue; the AI never blocks the day
 - [ ] **COACH-07**: Text inside an answer or resume cannot change the coach's rules (prompt-injection guard)
 
 ### Resume
@@ -94,7 +94,7 @@ Deferred. Tracked but not in the current roadmap.
 |-------------|-------|--------|
 | JRNY-01 | Phase 2 | Complete |
 | JRNY-02 | Phase 2 | Complete |
-| JRNY-03 | Phase 2 | Pending |
+| JRNY-03 | Phase 2 | Complete |
 | JRNY-04 | Phase 2 | Complete |
 | JRNY-05 | Phase 2 | Complete |
 | JRNY-06 | Phase 2 | Complete |
@@ -102,7 +102,7 @@ Deferred. Tracked but not in the current roadmap.
 | VOC-01 | Phase 2 | Complete |
 | VOC-02 | Phase 2 | Complete |
 | VOC-03 | Phase 2 | Complete |
-| PRAC-01 | Phase 2 | Pending |
+| PRAC-01 | Phase 2 | Complete |
 | PRAC-02 | Phase 2 | Pending |
 | PRAC-03 | Phase 2 | Pending |
 | PRAC-04 | Phase 2 | Pending |
@@ -113,7 +113,7 @@ Deferred. Tracked but not in the current roadmap.
 | COACH-03 | Phase 3 | Pending |
 | COACH-04 | Phase 3 | Pending |
 | COACH-05 | Phase 3 | Pending |
-| COACH-06 | Phase 2 | Pending |
+| COACH-06 | Phase 2 | Complete |
 | COACH-07 | Phase 3 | Pending |
 | RES-01 | Phase 2 | Pending |
 | RES-02 | Phase 2 | Pending |
