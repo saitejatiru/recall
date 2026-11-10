@@ -748,6 +748,16 @@ function saveStepAnswer(stepId, answerObj) {
   save();
 }
 
+// Answer saved: lock the submit button and send the learner to the self-check; "Done — move on" advances.
+function answerSaved(btn) {
+  if (btn) { btn.disabled = true; btn.textContent = 'Saved ✓'; }
+  var slot = document.querySelector('[id^="rubricSlot-"]');
+  if (slot) {
+    slot.insertAdjacentHTML('afterbegin', '<p class="small" style="color:var(--green)">Answer saved — tick the self-check, then Done — move on.</p>');
+    slot.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
 function goToStep(n) {
   var vd = data['d-' + todayStr];
   if (!vd) vd = data['d-' + todayStr] = { step: 0, complete: false };
@@ -932,7 +942,7 @@ document.addEventListener('click', function(e) {
       rubricChecked: []
     });
     stop();
-    goToStep(currentStep + 1);
+    answerSaved(el); // ponytail: Submit saves; only "Done — move on" advances
     return;
   }
 
@@ -960,7 +970,7 @@ document.addEventListener('click', function(e) {
       rubricChecked: []
     });
     stop();
-    goToStep(currentStep + 1);
+    answerSaved(el); // ponytail: Submit saves; only "Done — move on" advances
     return;
   }
 
@@ -1040,7 +1050,7 @@ document.addEventListener('click', function(e) {
       rubricChecked: []
     });
     stop();
-    goToStep(currentStep + 1);
+    answerSaved(el); // ponytail: Submit saves; only "Done — move on" advances
     return;
   }
 
