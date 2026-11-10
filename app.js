@@ -127,8 +127,9 @@ function startRecording() {
     }
   };
   recognition.onend = function() {
-    if (listening && timerRunning) {
-      // Android silence cut-off: restart
+    if (listening) {
+      // Chrome ends recognition after each pause: keep restarting until the user presses Stop
+      // (or a timer ends — that path calls stopRecording(), which clears `listening` first)
       try { recognition.start(); } catch(e) {}
     } else {
       // Flush to transcript
