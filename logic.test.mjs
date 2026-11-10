@@ -157,20 +157,20 @@ assert.equal(LOGIC.checkVocab('retentionRate', 'Retention rate', rootSentence, '
 
 // ── migrate ───────────────────────────────────────────────────────────────
 
-// existing key preserved; _version set to 2; vocab and weakspots added
+// existing key preserved; _version set to 3 (v1→v2→v3 chain); vocab and weakspots added
 var v1 = { day: 5, 'recall-2026-01-01': 'some text', 'tasks-2026-01-01': [0, 1] };
 var migrated = LOGIC.migrate(v1);
-assert.equal(migrated._version, 2, 'migrate sets _version = 2');
+assert.equal(migrated._version, 3, 'migrate sets _version = 3 (v1 migrates to latest)');
 assert.deepEqual(migrated.vocab, {}, 'migrate adds vocab = {}');
 assert.deepEqual(migrated.weakspots, [], 'migrate adds weakspots = []');
 assert.equal(migrated.day, 5, 'migrate preserves existing day key');
 assert.equal(migrated['recall-2026-01-01'], 'some text', 'migrate preserves existing recall key');
 assert.deepEqual(migrated['tasks-2026-01-01'], [0, 1], 'migrate preserves existing tasks key');
 
-// second call on v2 data → no-op
+// v2 data → migrates to v3
 var v2Already = { _version: 2, day: 3, vocab: { jtbd: { box: 2 } }, weakspots: ['a'] };
 var migrated2 = LOGIC.migrate(v2Already);
-assert.equal(migrated2._version, 2, 'migrate on v2 is no-op (version)');
+assert.equal(migrated2._version, 3, 'migrate on v2 → v3');
 assert.deepEqual(migrated2.vocab, { jtbd: { box: 2 } }, 'migrate on v2 preserves existing vocab');
 assert.deepEqual(migrated2.weakspots, ['a'], 'migrate on v2 preserves existing weakspots');
 

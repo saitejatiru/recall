@@ -156,15 +156,121 @@
     return longest;
   }
 
-  // ── Data migration (v1 → v2) ──────────────────────────────────────────────
+  // ── Data migration (v1 → v2 → v3) ───────────────────────────────────────
 
   function migrate(data) {
-    if (data._version >= 2) return data;
-    data._version = 2;
-    if (!data.vocab) data.vocab = {};
-    if (!data.weakspots) data.weakspots = [];
-    // Do NOT touch any existing v1 flat keys
+    // v1 → v2: add vocab and weakspots
+    if (!data._version || data._version < 2) {
+      data._version = 2;
+      if (!data.vocab) data.vocab = {};
+      if (!data.weakspots) data.weakspots = [];
+      // Do NOT touch any existing v1 flat keys
+    }
+    // v2 → v3: additive only (aiFeedback and lesson.concept land here in Phase 3)
+    if (data._version < 3) {
+      data._version = 3;
+    }
     return data;
+  }
+
+  // ── Coach payload builder ─────────────────────────────────────────────────
+
+  function buildCoachPayload(mode, inputs) {
+    var base = { task: 'coach', mode: mode };
+    var excerpt = inputs.resumeExcerpt ? inputs.resumeExcerpt.slice(0, 1500) : '';
+    if (mode === 'answer') {
+      return Object.assign({}, base, {
+        question: inputs.question,
+        framework: inputs.framework,
+        answer: inputs.answer,
+        attempt: inputs.attempt,
+        todayWords: inputs.todayWords,
+        learnedWords: inputs.learnedWords,
+        resumeExcerpt: excerpt,
+        stepType: inputs.stepType
+      });
+    }
+    if (mode === 'retry') {
+      return Object.assign({}, base, {
+        question: inputs.question,
+        framework: inputs.framework,
+        answer: inputs.answer,
+        attempt1Text: inputs.attempt1Text,
+        todayWords: inputs.todayWords,
+        resumeExcerpt: excerpt
+      });
+    }
+    if (mode === 'model') {
+      return Object.assign({}, base, {
+        question: inputs.question,
+        framework: inputs.framework,
+        resumeExcerpt: excerpt
+      });
+    }
+    if (mode === 'vocab') {
+      return Object.assign({}, base, { sentences: inputs.sentences });
+    }
+    if (mode === 'teachback') {
+      return Object.assign({}, base, { concept: inputs.concept, answer: inputs.answer });
+    }
+    return base;
+  }
+
+  // ── Coach response validator ───────────────────────────────────────────────
+
+  function validateCoachResponse(json) {
+    if (!json) return false;
+    if (typeof json.score !== 'number') return false;
+    if (!Number.isInteger(json.score)) return false;
+    if (json.score < 1 || json.score > 10) return false;
+    if (typeof json.fix !== 'string' || json.fix.length === 0) return false;
+    if (typeof json.betterLine !== 'string' || json.betterLine.length === 0) return false;
+    if (!Array.isArray(json.tags)) return false;
+    return true;
+  }
+
+  // ── Weak-spot aggregation ─────────────────────────────────────────────────
+
+  function computeTopWeakSpots(data, todayStr, days) {
+    days = days !== undefined ? days : 7;
+    var counts = {};
+    for (var i = 0; i < days; i++) {
+      var d = addDays(todayStr, -i);
+      var dd = data['d-' + d];
+      if (!dd) continue;
+      ['speak', 'case', 'interview'].forEach(function(step) {
+        var tags = (dd[step] && dd[step].aiFeedback && dd[step].aiFeedback.tags) || [];
+        tags.forEach(function(t) { counts[t] = (counts[t] || 0) + 1; });
+      });
+    }
+    return Object.entries(counts)
+      .sort(function(a, b) { return b[1] - a[1]; })
+      .slice(0, 3)
+      .map(function(e) { return e[0]; });
+  }
+
+  // ── Adaptive question selection ───────────────────────────────────────────
+
+  function selectByWeakSpot(items, topTags) {
+    var topTagsSet = new Set(topTags);
+    for (var i = 0; i < items.length; i++) {
+      var tags = items[i].targetsTags || [];
+      if (tags.some(function(t) { return topTagsSet.has(t); })) return items[i];
+    }
+    return items[0];
+  }
+
+  // ── Word chip detection ───────────────────────────────────────────────────
+  // Reuses same root-strip logic as checkVocab step 3
+
+  function detectWordChips(text, todayWords) {
+    var found = new Set();
+    var lower = text.toLowerCase();
+    todayWords.forEach(function(w) {
+      var tl = w.term.toLowerCase().replace(/\s*\([^)]+\)/, '').trim();
+      if (lower.includes(tl)) found.add(w.id);
+    });
+    return found;
   }
 
   // ── Backup validation ─────────────────────────────────────────────────────
@@ -200,5 +306,10 @@
   exports.migrate = migrate;
   exports.validateBackup = validateBackup;
   exports.shouldAdvanceProgrammeDay = shouldAdvanceProgrammeDay;
+  exports.buildCoachPayload = buildCoachPayload;
+  exports.validateCoachResponse = validateCoachResponse;
+  exports.computeTopWeakSpots = computeTopWeakSpots;
+  exports.selectByWeakSpot = selectByWeakSpot;
+  exports.detectWordChips = detectWordChips;
 
 })(typeof module !== 'undefined' ? module.exports : (window.LOGIC = window.LOGIC || {}));
