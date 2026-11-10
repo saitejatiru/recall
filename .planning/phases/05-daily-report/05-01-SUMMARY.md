@@ -31,3 +31,4 @@
 - `node worker/worker.test.mjs`: all passed.
 - `node --check app.js`: passed cleanly.
 - Playwright headless browser test: all report sections, badges, and actions verified.
+
