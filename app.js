@@ -250,6 +250,7 @@ const STEP_TIMES  = ['~8 min', '~5 min', '~5 min', '~7 min', '~5 min'];
       if (statusEl) statusEl.textContent = 'Restoring…';
       localStorage.setItem('recallData', JSON.stringify(parsed.recallData));
       if (parsed.recallResume) localStorage.setItem('recallResume', parsed.recallResume);
+      if (parsed.recallResumeProfile) localStorage.setItem('recallResumeProfile', parsed.recallResumeProfile);
       data = JSON.parse(localStorage.getItem('recallData')) || {};
       LOGIC.migrate(data);
       save();
@@ -331,6 +332,7 @@ async function extractPDF(file) {
       return;
     }
     localStorage.setItem('recallResume', allText.trim());
+    localStorage.setItem('recallResumeProfile', 'other');
     setResumeLoading(false);
     renderApp();
   } catch(e) {
@@ -338,21 +340,92 @@ async function extractPDF(file) {
   }
 }
 
+// ── Built-in profile: Saiteja Tirunagari ──────────────────────────────────
+var SAITEJA_RESUME = 
+  "SAITEJA TIRUNAGARI\n" +
+  "AI-First Product Manager • 0→1 Builder • 6+ Years • Hyderabad, India\n" +
+  "saitejatirunagari@gmail.com | linkedin.com/in/saiteja-tirunagari | saitejatirunagari.in\n\n" +
+  "SUMMARY\n" +
+  "AI-first Product Manager and former EdTech founder shipping 0→1 products at scale: acquisition funnels, LLM-powered platforms, " +
+  "and high-volume automation serving 1M+ users, 100K+ payments, and a ₹1,120+ Cr annual pipeline. Architected LLM evaluation " +
+  "engines (80% human parity), AI ingestion pipelines (1,800 apps/min, 10x cost reduction), and conversational AI that lifted payment " +
+  "conversion 36 pp. Hands-on with LLM integration, prompt engineering, SQL, and REST APIs.\n\n" +
+  "EXPERIENCE\n" +
+  "NxtWave Disruptive Technologies (Jan 2023 – Present • Hyderabad)\n" +
+  "Promoted twice in three years: Influencer Marketing Executive → Growth Manager → Product Manager\n" +
+  "Product Manager (May 2024 – Present)\n" +
+  "• Owned product strategy, roadmap, and Agile delivery for 6+ internal products across acquisition, admissions, and sales enablement: " +
+  "1M+ users, 100K+ fee payments, ₹1,120+ Cr pipeline; improved feature delivery timelines 20%.\n" +
+  "• NIAT Application Portal (1M+ users, 100K+ payments): Led end-to-end revamp of unified funnel (landing → OTP → payment → slot → exam → report → sales) " +
+  "integrated with CRM, WebEngage, payment systems; scaled to 140K+ OTP-verified leads (97% detail-completion, 95% exam attendance). " +
+  "Lifted 0–60 min payment completion 27% → 63% (+36 pp) via coupon urgency logic, behavioral nudges, frictionless WhatsApp payment flow; +7 pp overall conversion.\n" +
+  "• Referral Platform (v1 & v2): Conceived and launched centralized referral platform across 3 verticals; delivered 25% of 2025 admissions intake as low-CAC organic channel. " +
+  "Built no-code workflow configurator enabling non-technical teams to deploy custom criteria; 5x active referrers, 3x enrollments.\n" +
+  "• AI-Powered Sales Audit Platform: Architected LLM evaluation engine assessing 100% of sales demos against standardized rubrics (80% human parity). " +
+  "Migrated pipeline to Google STT + Gemini Flash (~50% lower cost, +20% transcription accuracy). Shipped manager dashboards across 6-tier sales hierarchy.\n" +
+  "• AI Sales Chatbot: Redesigned landing-page chatbot into stage-wise conversion engine; 6,700+ leads, 113 enrollments. Designed Hot-Warm-Cold lead scoring " +
+  "with real-time CRM routing (+10 pp call success, 50%+ lift in seat-reservation conversion).\n" +
+  "• Offline Applications Processing: Built AI ingestion pipeline processing 1,800 applications/minute (300K+ total): 90% time reduction, 10x cost savings (₹4 → ₹0.10/page). " +
+  "Engineered multi-version form support with dynamic routing and Salesforce CRM integration.\n" +
+  "• Growth Infrastructure: Launched personalized NAT Results Report with 24-hr time-gated preview (visibility 18% → 69%, 3.8x, sharing up 2.5x). " +
+  "Designed 8 landing pages on Unleash A/B engine (up to 38% Visit→OTP; cut lead leakage 25%, raised SQLs 18%).\n" +
+  "• Shipped NIAT Launchpad: Mobile-first AI-learning MVP for Grades 9–12 built with single developer via AI-assisted development (428 users, 100% onboarding, 38.7% activation).\n\n" +
+  "Growth Manager (Mar 2023 – May 2024)\n" +
+  "• Built 300+ college partner network across AP, Telangana, Karnataka. Generated 15,000+ webinar registrations, 35,000 scholarship test leads. Launched 0→1 refer-and-earn campaign.\n\n" +
+  "BYJU'S (Think & Learn) | Assistant Manager, User Experience (Aug 2019 – Dec 2022 • Bengaluru)\n" +
+  "• Owned onboarding, engagement, retention for freemium K–12 online classes: 40,000 customers, 20-person CX team. " +
+  "Built user-engagement dashboard for mentors. Redesigned onboarding via UX research and A/B testing (+8% retention). " +
+  "Ran 0→1 Social-Emotional Learning pilot. Held refund rate <5%, CSAT >95%, sustained 95%+ MRR.\n\n" +
+  "ML Edutech | Founder (Aug 2015 – Jul 2019 • Hyderabad)\n" +
+  "• Launched EdTech app portfolio of 275 apps with 3M+ cumulative downloads; owned P&L, acquisition, strategic partnerships. " +
+  "Built Android apps in Java/Kotlin with Firebase real-time database.\n\n" +
+  "EDUCATION & SKILLS\n" +
+  "• IIM Rohtak: Diploma, Product & Brand Management\n" +
+  "• JNTU Hyderabad: B.E., Civil Engineering | Osmania University: Diploma, Business Management\n" +
+  "• Product: Roadmap Prioritization, 0→1 Product Development, GTM, OKRs, RICE, MoSCoW, PRDs, User Stories, Stakeholder Management\n" +
+  "• Technical & AI: AI/ML Product Development, LLM Integration (Gemini, Claude, GPT), Prompt Engineering, Evaluation Rubrics, STT/OCR, SQL, Python, REST APIs\n" +
+  "• Analytics & Tools: Amplitude, Mixpanel, Google Analytics, Looker, Unleash A/B Testing, Segment, Figma, Jira, Salesforce, WebEngage";
+
+function getActiveResume() {
+  var profile = localStorage.getItem('recallResumeProfile') || 'saiteja';
+  if (profile === 'saiteja') {
+    return SAITEJA_RESUME;
+  }
+  return localStorage.getItem('recallResume') || '';
+}
+
 function renderResumeSection() {
-  var saved = localStorage.getItem('recallResume') || '';
-  var html = '<div class="card" id="resumeCard"><h3>Your resume</h3>';
-  if (!saved) {
-    html += '<p class="muted">No resume saved</p>';
-    html += '<p>Upload a PDF to get personalised feedback in future sessions. You can practice without it.</p>';
-    html += '<button class="btn" data-action="resume-upload">Upload PDF resume</button>';
-  } else {
-    html += '<textarea id="resumeText" aria-label="Resume text" style="min-height:200px">' + esc(saved) + '</textarea>';
-    html += '<div id="resumeCharCount" class="small muted">' + saved.length + ' characters</div>';
-    html += '<div class="row" style="margin-top:8px">';
-    html += '<button class="btn" data-action="resume-replace">Replace resume</button>';
-    html += '<button class="btn" data-action="resume-delete">Delete resume</button>';
+  var profile = localStorage.getItem('recallResumeProfile') || 'saiteja';
+  var customSaved = localStorage.getItem('recallResume') || '';
+  var html = '<div class="card" id="resumeCard"><h3>Candidate Profile</h3>';
+  html += '<div style="margin:8px 0 12px">';
+  html += '<label class="small muted" for="resumeProfileSelect" style="display:block;margin-bottom:4px">Select Candidate Profile</label>';
+  html += '<select id="resumeProfileSelect" style="width:100%;max-width:320px;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:14px">';
+  html += '<option value="saiteja"' + (profile === 'saiteja' ? ' selected' : '') + '>Saiteja Tirunagari (Configured)</option>';
+  html += '<option value="other"' + (profile === 'other' ? ' selected' : '') + '>Other (Upload custom resume)</option>';
+  html += '</select>';
+  html += '</div>';
+
+  if (profile === 'saiteja') {
+    html += '<div style="border-left:3px solid var(--green);background:var(--panel2);padding:10px 14px;border-radius:0 8px 8px 0">';
+    html += '<p style="margin:0 0 4px;font-weight:600;color:var(--green)">✓ Profile Active: Saiteja Tirunagari</p>';
+    html += '<p class="small muted" style="margin:0">AI coach personalizes cases and interview contexts to your 0→1 EdTech &amp; AI PM background.</p>';
     html += '</div>';
-    html += '<p class="small muted">Resume saved on this device only.</p>';
+  } else {
+    if (!customSaved) {
+      html += '<p class="muted">No custom resume saved</p>';
+      html += '<p class="small">Upload a PDF or paste text to personalize feedback for a different profile.</p>';
+      html += '<button class="btn" data-action="resume-upload">Upload PDF resume</button>';
+    } else {
+      html += '<div style="border-left:3px solid var(--accent);background:var(--panel2);padding:10px 14px;border-radius:0 8px 8px 0;margin-bottom:8px">';
+      html += '<p style="margin:0 0 4px;font-weight:600;color:var(--accent)">✓ Custom Resume Loaded</p>';
+      html += '<p class="small muted" style="margin:0">' + customSaved.length + ' characters configured on this device.</p>';
+      html += '</div>';
+      html += '<div class="row" style="margin-top:8px">';
+      html += '<button class="btn" data-action="resume-replace">Replace resume</button>';
+      html += '<button class="btn" data-action="resume-delete">Delete resume</button>';
+      html += '</div>';
+    }
   }
   html += '</div>';
   return html;
@@ -574,7 +647,7 @@ function buildEndlessDay() {
   return workerCall('generate', {
     dayNum: n, topTags: topTags,
     seenTerms: seen.terms.slice(-500), seenQuestions: seen.questions.slice(-120),
-    resumeExcerpt: (localStorage.getItem('recallResume') || '').slice(0, 1500)
+    resumeExcerpt: getActiveResume().slice(0, 1500)
   }).then(function(res) { return LOGIC.validateGeneratedDay(res, seen, n) || remix(); }, remix)
     .then(function(p) {
       if (th) th.classList.add('hidden');
@@ -1235,7 +1308,7 @@ document.addEventListener('click', function(e) {
       attempt: 1,
       todayWords: todayTerms(),
       learnedWords: learnedWordIds(),
-      resumeExcerpt: (localStorage.getItem('recallResume') || '').slice(0,1500),
+      resumeExcerpt: getActiveResume().slice(0, 1500),
       stepType: 'speak'
     });
     var spTh = document.getElementById('thinking');
@@ -1287,7 +1360,7 @@ document.addEventListener('click', function(e) {
       attempt: 1,
       todayWords: todayTerms(),
       learnedWords: learnedWordIds(),
-      resumeExcerpt: (localStorage.getItem('recallResume') || '').slice(0,1500),
+      resumeExcerpt: getActiveResume().slice(0, 1500),
       stepType: 'case'
     });
     var caTh = document.getElementById('thinking');
@@ -1389,7 +1462,7 @@ document.addEventListener('click', function(e) {
       attempt: 1,
       todayWords: todayTerms(),
       learnedWords: learnedWordIds(),
-      resumeExcerpt: (localStorage.getItem('recallResume') || '').slice(0,1500),
+      resumeExcerpt: getActiveResume().slice(0, 1500),
       stepType: 'interview'
     });
     var ifTh = document.getElementById('thinking');
@@ -1436,7 +1509,7 @@ document.addEventListener('click', function(e) {
       answer: retryText,
       attempt1Text: sd.transcript || sd.text || '',
       todayWords: todayTerms(),
-      resumeExcerpt: (localStorage.getItem('recallResume') || '').slice(0,1500)
+      resumeExcerpt: getActiveResume().slice(0, 1500)
     });
     el.disabled = true; el.textContent = 'Checking…';
     workerCall('coach', retryPayload).then(function(res) {
@@ -1462,7 +1535,7 @@ document.addEventListener('click', function(e) {
     var modelPayload = LOGIC.buildCoachPayload('model', {
       question: smd.question || '',
       framework: smd.framework || '',
-      resumeExcerpt: (localStorage.getItem('recallResume') || '').slice(0,1500)
+      resumeExcerpt: getActiveResume().slice(0, 1500)
     });
     workerCall('coach', modelPayload).then(function(res) {
       var mHtml = '<div style="margin-top:8px;border-left:4px solid var(--green);background:var(--panel2);padding:12px 16px;border-radius:0 8px 8px 0">';
@@ -1493,12 +1566,17 @@ document.addEventListener('click', function(e) {
     var pasteEl = document.getElementById('resumePasteArea');
     if (!pasteEl || !pasteEl.value.trim()) return;
     localStorage.setItem('recallResume', pasteEl.value.trim());
+    localStorage.setItem('recallResumeProfile', 'other');
     renderApp();
     return;
   }
 
   if (action === 'export-backup') {
-    var payload = { recallData: data, recallResume: localStorage.getItem('recallResume') || '' };
+    var payload = {
+      recallData: data,
+      recallResume: localStorage.getItem('recallResume') || '',
+      recallResumeProfile: localStorage.getItem('recallResumeProfile') || 'saiteja'
+    };
     var u = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }));
     var a = document.createElement('a');
     a.href = u; a.download = 'recall-backup.json'; a.click();
@@ -1509,6 +1587,14 @@ document.addEventListener('click', function(e) {
   if (action === 'import-backup') {
     document.getElementById('importFileInput').click();
     return;
+  }
+});
+
+// ── Profile selector change delegation ───────────────────────────────────
+document.addEventListener('change', function(e) {
+  if (e.target && e.target.id === 'resumeProfileSelect') {
+    localStorage.setItem('recallResumeProfile', e.target.value);
+    renderApp();
   }
 });
 
