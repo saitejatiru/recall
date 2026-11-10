@@ -32,26 +32,26 @@
 
 ### AI Coach
 
-- [ ] **COACH-01**: After each answer the user gets: score 1–10, what landed, the one most important fix, and a better line to say — at most ~80 words, in plain language
-- [ ] **COACH-02**: The coach stays on PM interview coaching and politely refuses off-topic requests
-- [ ] **COACH-03**: Better lines use the user's resume projects and numbers, and never invent facts that are not in the resume
-- [ ] **COACH-04**: Scores follow one fixed rubric (structure, clarity, PM vocabulary, metrics, impact, conciseness), so they are comparable across days, and feedback does not open with empty praise
-- [ ] **COACH-05**: When the coach notices a missed chance, it names a PM word the user has already learned that would have fit
+- [x] **COACH-01**: After each answer the user gets: score 1–10, what landed, the one most important fix, and a better line to say — at most ~80 words, in plain language
+- [x] **COACH-02**: The coach stays on PM interview coaching and politely refuses off-topic requests
+- [x] **COACH-03**: Better lines use the user's resume projects and numbers, and never invent facts that are not in the resume
+- [x] **COACH-04**: Scores follow one fixed rubric (structure, clarity, PM vocabulary, metrics, impact, conciseness), so they are comparable across days, and feedback does not open with empty praise
+- [x] **COACH-05**: When the coach notices a missed chance, it names a PM word the user has already learned that would have fit
 - [x] **COACH-06**: If the AI is unavailable or slow, the user can self-check with a checklist and continue; the AI never blocks the day
-- [ ] **COACH-07**: Text inside an answer or resume cannot change the coach's rules (prompt-injection guard)
+- [x] **COACH-07**: Text inside an answer or resume cannot change the coach's rules (prompt-injection guard)
 
 ### Learning Method (added 2026-11-10 from user testing)
 
-- [ ] **LEARN-01**: Every speak/case/interview question names the framework to use with a 3-line cheat card — STAR (behavioural), CIRCLES (product design/improvement), issue tree + 5 Whys (metric drop/diagnosis), RICE (prioritisation), Pyramid/PREP answer-first (any answer) — and the coach scores structure against that framework
-- [ ] **LEARN-02**: Today's 5 words show as "use these words" chips in the speak, case and interview steps; a chip lights up when the word is used, and the coach credits correct use and flags misuse
-- [ ] **LEARN-03**: Deliberate practice loop — after feedback the user can "Try again with the fix"; the coach scores the second attempt and shows what improved
-- [ ] **LEARN-04**: After feedback the user can open a short model answer (≤120 words) in the named framework, using only facts from their resume
-- [ ] **LEARN-05**: The next day's recall step quizzes yesterday's one fix and words before showing them (retrieval practice)
-- [ ] **LEARN-06**: The coach checks each vocab sentence (replacing the local check) and gives a corrected sentence when usage is wrong
-- [ ] **LEARN-07**: Each day opens with a short micro-lesson (about 3 min, "I do"): one product concept tied to the day's word theme (e.g. North Star metric, AARRR/HEART, JTBD, RICE/Kano, moats) plus one communication framework, taught with a worked example; then the first answer is guided step-by-step through the framework ("we do") before the free answers ("you do") — guidance fades over the 30 days (scaffolding)
-- [ ] **LEARN-08**: Teach-back (Feynman): once a day the user explains the day's concept to a "new teammate" in plain words; the coach points out the gap or jargon to fix
-- [ ] **LEARN-09**: Socratic follow-up: when an answer skips a framework step, the coach asks one probing interviewer-style question instead of only stating the fix
-- [ ] **LEARN-10**: Review days (7, 14, 21, 28) mix questions across all frameworks learned so far (interleaving) and end with a short reflection: what improved, what to drill next (metacognition)
+- [x] **LEARN-01**: Every speak/case/interview question names the framework to use with a 3-line cheat card — STAR (behavioural), CIRCLES (product design/improvement), issue tree + 5 Whys (metric drop/diagnosis), RICE (prioritisation), Pyramid/PREP answer-first (any answer) — and the coach scores structure against that framework
+- [x] **LEARN-02**: Today's 5 words show as "use these words" chips in the speak, case and interview steps; a chip lights up when the word is used, and the coach credits correct use and flags misuse
+- [x] **LEARN-03**: Deliberate practice loop — after feedback the user can "Try again with the fix"; the coach scores the second attempt and shows what improved
+- [x] **LEARN-04**: After feedback the user can open a short model answer (≤120 words) in the named framework, using only facts from their resume
+- [x] **LEARN-05**: The next day's recall step quizzes yesterday's one fix and words before showing them (retrieval practice)
+- [x] **LEARN-06**: The coach checks each vocab sentence (replacing the local check) and gives a corrected sentence when usage is wrong
+- [x] **LEARN-07**: Each day opens with a short micro-lesson (about 3 min, "I do"): one product concept tied to the day's word theme (e.g. North Star metric, AARRR/HEART, JTBD, RICE/Kano, moats) plus one communication framework, taught with a worked example; then the first answer is guided step-by-step through the framework ("we do") before the free answers ("you do") — guidance fades over the 30 days (scaffolding)
+- [x] **LEARN-08**: Teach-back (Feynman): once a day the user explains the day's concept to a "new teammate" in plain words; the coach points out the gap or jargon to fix
+- [x] **LEARN-09**: Socratic follow-up: when an answer skips a framework step, the coach asks one probing interviewer-style question instead of only stating the fix
+- [x] **LEARN-10**: Review days (7, 14, 21, 28) mix questions across all frameworks learned so far (interleaving) and end with a short reflection: what improved, what to drill next (metacognition)
 
 ### Resume
 
@@ -61,9 +61,9 @@
 
 ### Weak Spots
 
-- [ ] **WEAK-01**: Each piece of feedback tags mistakes from a fixed list of 10 (e.g. no-metric, rambling, no-structure), and the tags are saved
-- [ ] **WEAK-02**: The journey intro shows the top weak spots from the last 7 days and today's focus
-- [ ] **WEAK-03**: The unexpected question and case are picked to push on the user's top weak spot
+- [x] **WEAK-01**: Each piece of feedback tags mistakes from a fixed list of 10 (e.g. no-metric, rambling, no-structure), and the tags are saved
+- [x] **WEAK-02**: The journey intro shows the top weak spots from the last 7 days and today's focus
+- [x] **WEAK-03**: The unexpected question and case are picked to push on the user's top weak spot
 
 ### Proxy & Hosting
 
@@ -121,29 +121,29 @@ Deferred. Tracked but not in the current roadmap.
 | PRAC-04 | Phase 2 | Complete |
 | PRAC-05 | Phase 2 | Complete |
 | PRAC-06 | Phase 2 | Complete |
-| COACH-01 | Phase 3 | Pending |
-| COACH-02 | Phase 3 | Pending |
-| COACH-03 | Phase 3 | Pending |
-| COACH-04 | Phase 3 | Pending |
-| COACH-05 | Phase 3 | Pending |
+| COACH-01 | Phase 3 | Complete |
+| COACH-02 | Phase 3 | Complete |
+| COACH-03 | Phase 3 | Complete |
+| COACH-04 | Phase 3 | Complete |
+| COACH-05 | Phase 3 | Complete |
 | COACH-06 | Phase 2 | Complete |
-| COACH-07 | Phase 3 | Pending |
+| COACH-07 | Phase 3 | Complete |
 | RES-01 | Phase 2 | Complete |
 | RES-02 | Phase 2 | Complete |
 | RES-03 | Phase 2 | Complete |
-| WEAK-01 | Phase 3 | Pending |
-| WEAK-02 | Phase 3 | Pending |
-| WEAK-03 | Phase 3 | Pending |
-| LEARN-01 | Phase 3 | Pending |
-| LEARN-02 | Phase 3 | Pending |
-| LEARN-03 | Phase 3 | Pending |
-| LEARN-04 | Phase 3 | Pending |
-| LEARN-05 | Phase 3 | Pending |
-| LEARN-06 | Phase 3 | Pending |
-| LEARN-07 | Phase 3 | Pending |
-| LEARN-08 | Phase 3 | Pending |
-| LEARN-09 | Phase 3 | Pending |
-| LEARN-10 | Phase 3 | Pending |
+| WEAK-01 | Phase 3 | Complete |
+| WEAK-02 | Phase 3 | Complete |
+| WEAK-03 | Phase 3 | Complete |
+| LEARN-01 | Phase 3 | Complete |
+| LEARN-02 | Phase 3 | Complete |
+| LEARN-03 | Phase 3 | Complete |
+| LEARN-04 | Phase 3 | Complete |
+| LEARN-05 | Phase 3 | Complete |
+| LEARN-06 | Phase 3 | Complete |
+| LEARN-07 | Phase 3 | Complete |
+| LEARN-08 | Phase 3 | Complete |
+| LEARN-09 | Phase 3 | Complete |
+| LEARN-10 | Phase 3 | Complete |
 | PROXY-01 | Phase 1 | Complete |
 | PROXY-02 | Phase 1 | Complete |
 | PROXY-03 | Phase 1 | Complete |

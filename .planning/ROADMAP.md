@@ -8,7 +8,7 @@ RECALL transforms an existing multi-tab PM practice tool into a guided daily jou
 
 - [x] **Phase 1: Proxy & Hosting** - Cloudflare Worker proxy with key rotation, auth, and GitHub Pages deploy; no AI call is possible without this (completed 2026-11-09)
 - [x] **Phase 2: Journey Shell** - Complete 5-step daily journey (vocab, recall, speaking, case, interview), resume upload, Leitner review, and storage migration — all offline-testable (completed 2026-11-10)
-- [ ] **Phase 3: AI Coach + Weak Spots** - Live NIM feedback on every step with rubric-anchored scoring, weak-spot tagging, and adaptive question selection
+- [x] **Phase 3: AI Coach + Weak Spots** - Live NIM feedback on every step with rubric-anchored scoring, weak-spot tagging, and adaptive question selection (completed 2026-11-10)
 - [ ] **Phase 4: Endless Mode** - AI-generated fresh daily content after day 30, using the user's weak-spot history and resume
 
 ## Phase Details
@@ -77,7 +77,7 @@ Plans:
   6. Vocab sentences get an AI check with a corrected sentence; the next day's recall quizzes yesterday's fix and words
   7. Each day teaches before it tests: a micro-lesson (product concept + framework with a worked example), a guided first answer, a teach-back, Socratic follow-ups; review days mix frameworks and end with a reflection
 
-**Plans**: 3/4 plans executed
+**Plans**: 4/4 plans executed
 
 Plans:
 **Wave 1** (parallel)
@@ -91,7 +91,7 @@ Plans:
 
 **Wave 3** (blocked on Wave 2)
 
-- [ ] 03-04-PLAN.md — app.js: recall fix-recall quiz + teach-back, review days 7/14/21/28 with interleaved questions + metacognition reflection, adaptive case/interview selection; human verification checkpoint
+- [x] 03-04-PLAN.md — app.js: recall fix-recall quiz + teach-back, review days 7/14/21/28 with interleaved questions + metacognition reflection, adaptive case/interview selection; human verification checkpoint
 
 **UI hint**: yes
 
@@ -114,5 +114,5 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Proxy & Hosting | 3/3 | Complete    | 2026-11-09 |
 | 2. Journey Shell | 3/3 | Complete    | 2026-11-10 |
-| 3. AI Coach + Weak Spots | 3/4 | In Progress|  |
+| 3. AI Coach + Weak Spots | 4/4 | Complete    | 2026-11-10 |
 | 4. Endless Mode | 0/? | Not started | - |
