@@ -458,7 +458,7 @@ function renderApp() {
   var step = (dayData && dayData.step) || 0;
 
   if (!dayData || step === 0) {
-    container.innerHTML = renderStepper(0) + renderEntry(dayData);
+    container.innerHTML = renderEntry(dayData); // renderEntry draws its own stepper
     return;
   }
 
