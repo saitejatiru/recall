@@ -8,9 +8,14 @@ const today = () => new Date().toLocaleDateString('en-CA');
 const esc = s => String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 let data = {};
-try { data = JSON.parse(localStorage.getItem('recallData') || '{}'); } catch(e) {}
-// Run migration on load so v2 fields are present before any reads
-if (typeof LOGIC !== 'undefined') LOGIC.migrate(data);
+let rawData = null;
+try { rawData = localStorage.getItem('recallData'); data = JSON.parse(rawData || '{}') || {}; } catch(e) { data = {}; }
+// v1 → v2 migration on load: keep a one-time copy of the untouched v1 data first, never delete keys, then persist
+if (typeof LOGIC !== 'undefined' && !(data._version >= 2)) {
+  try { if (rawData && localStorage.getItem('recallData_v1_backup') === null) localStorage.setItem('recallData_v1_backup', rawData); } catch(e) {}
+  LOGIC.migrate(data);
+  save();
+}
 
 function save() {
   try { localStorage.setItem('recallData', JSON.stringify(data)); } catch(e) {}
