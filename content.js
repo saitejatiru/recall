@@ -312,37 +312,61 @@ const DAYS = [
 ['Simulation','Final interview simulation','Why should we hire you as a Product Manager?']
 ];
 
-// QUESTIONS[9] — extracted verbatim from index.html
+// QUESTIONS[9] — objects with text and framework for AI coach
 const QUESTIONS = [
-'Why should a company invest in customer retention?',
-'Explain a project you are proud of.',
-'What would you do if your manager disagreed with your recommendation?',
-'How would you improve a fintech payment experience?',
-'Explain why a product feature failed.',
-'What makes you a good Product Manager?',
-'How would you convince a stakeholder to change priorities?',
-'Explain a technical concept to a non-technical person.',
-'What would you do if you did not know the answer to a stakeholder question?'
+  { text: 'Why should a company invest in customer retention?', framework: 'PREP' },
+  { text: 'Explain a project you are proud of.', framework: 'STAR' },
+  { text: 'What would you do if your manager disagreed with your recommendation?', framework: 'STAR' },
+  { text: 'How would you improve a fintech payment experience?', framework: 'CIRCLES' },
+  { text: 'Explain why a product feature failed.', framework: 'STAR' },
+  { text: 'What makes you a good Product Manager?', framework: 'PREP' },
+  { text: 'How would you convince a stakeholder to change priorities?', framework: 'STAR' },
+  { text: 'Explain a technical concept to a non-technical person.', framework: 'PREP' },
+  { text: 'What would you do if you did not know the answer to a stakeholder question?', framework: 'PREP' }
 ];
 
-// CASES[4] — extracted verbatim from index.html: [title, scenario, reasoning]
+// CASES[4] — objects with framework and targetsTags for adaptive selection
 const CASES = [
-['Payment conversion is falling','A fintech product sees payment completion fall from 72% to 59% over two weeks. Diagnose the problem before proposing solutions.','Segment by platform, payment method, user cohort and funnel step. Check technical failures, latency, UX changes and external payment-provider issues. Validate the cause before changing the product.'],
-['Low feature adoption','A new rewards feature has 100,000 eligible users but only 8% use it. Diagnose the problem.','Check awareness, discoverability, eligibility, value proposition, onboarding, usability and repeat engagement. Interview users and analyse behaviour.'],
-['Prioritisation conflict','Engineering wants reliability improvements, Sales wants three features and leadership wants growth. Capacity allows one initiative. Decide.','Assess customer impact, strategic fit, revenue, risk, effort and dependencies. Make assumptions explicit and align stakeholders on a decision framework.'],
-['Poor onboarding','Only 35% of new users complete onboarding. What would you investigate?','Map each step, identify abandonment points, segment cohorts, inspect friction and test improvements. Track completion and downstream activation.']
+  {
+    title: 'Payment conversion is falling',
+    scenario: 'A fintech product sees payment completion fall from 72% to 59% over two weeks. Diagnose the problem before proposing solutions.',
+    reasoning: 'Segment by platform, payment method, user cohort and funnel step. Check technical failures, latency, UX changes and external payment-provider issues. Validate the cause before changing the product.',
+    framework: 'issue-tree',
+    targetsTags: ['no-metric', 'no-structure']
+  },
+  {
+    title: 'Low feature adoption',
+    scenario: 'A new rewards feature has 100,000 eligible users but only 8% use it. Diagnose the problem.',
+    reasoning: 'Check awareness, discoverability, eligibility, value proposition, onboarding, usability and repeat engagement. Interview users and analyse behaviour.',
+    framework: 'issue-tree',
+    targetsTags: ['generic', 'no-data-backing']
+  },
+  {
+    title: 'Prioritisation conflict',
+    scenario: 'Engineering wants reliability improvements, Sales wants three features and leadership wants growth. Capacity allows one initiative. Decide.',
+    reasoning: 'Assess customer impact, strategic fit, revenue, risk, effort and dependencies. Make assumptions explicit and align stakeholders on a decision framework.',
+    framework: 'RICE',
+    targetsTags: ['no-framework', 'rambling']
+  },
+  {
+    title: 'Poor onboarding',
+    scenario: 'Only 35% of new users complete onboarding. What would you investigate?',
+    reasoning: 'Map each step, identify abandonment points, segment cohorts, inspect friction and test improvements. Track completion and downstream activation.',
+    framework: 'issue-tree',
+    targetsTags: []
+  }
 ];
 
-// INTERVIEW[8] — extracted verbatim from index.html: [category, question]
+// INTERVIEW[8] — objects with category, question, framework and targetsTags
 const INTERVIEW = [
-['Product sense','How would you improve a digital payments app?'],
-['Metrics','Payment conversion dropped by 15% overnight. How would you investigate?'],
-['Strategy','How would you create a product strategy for a new fintech product?'],
-['Prioritisation','How do you prioritise features when every stakeholder says their request is urgent?'],
-['Execution','Tell me about a time you took a product from idea to launch.'],
-['Leadership','Tell me about a time you disagreed with a senior stakeholder.'],
-['Failure','Tell me about a product decision that did not work.'],
-['Analytics','How would you measure the success of a new feature?']
+  { category: 'Product sense', question: 'How would you improve a digital payments app?', framework: 'CIRCLES', targetsTags: [] },
+  { category: 'Metrics', question: 'Payment conversion dropped by 15% overnight. How would you investigate?', framework: 'issue-tree', targetsTags: ['no-metric', 'no-data-backing'] },
+  { category: 'Strategy', question: 'How would you create a product strategy for a new fintech product?', framework: 'PREP', targetsTags: [] },
+  { category: 'Prioritisation', question: 'How do you prioritise features when every stakeholder says their request is urgent?', framework: 'RICE', targetsTags: [] },
+  { category: 'Execution', question: 'Tell me about a time you took a product from idea to launch.', framework: 'STAR', targetsTags: ['vague-action', 'missing-stakeholder'] },
+  { category: 'Leadership', question: 'Tell me about a time you disagreed with a senior stakeholder.', framework: 'STAR', targetsTags: ['vague-action', 'missing-stakeholder'] },
+  { category: 'Failure', question: 'Tell me about a product decision that did not work.', framework: 'STAR', targetsTags: [] },
+  { category: 'Analytics', question: 'How would you measure the success of a new feature?', framework: 'PREP', targetsTags: ['no-metric', 'no-data-backing'] }
 ];
 
 // FOLLOWUPS — static follow-up probes mapped by interview category (Phase 2)
@@ -357,3 +381,313 @@ const FOLLOWUPS = {
   'Failure':       'How did that change how you approach similar decisions now?',
   'Analytics':     'What leading indicator would you check first?'
 };
+
+// CHEAT_CARDS — 3-line framework guides shown in step header
+// Keys match framework string values used in QUESTIONS/CASES/INTERVIEW exactly
+const CHEAT_CARDS = {
+  'STAR': {
+    l1: 'Situation → Task → Action → Result',
+    l2: 'Action = what YOU specifically did; Result = named metric',
+    l3: '≤2 min; end with the number'
+  },
+  'CIRCLES': {
+    l1: 'Customers → Identify needs → Prioritise → List solutions → Evaluate → Recommend',
+    l2: 'Clarify scope first; name 2-3 user segments; pick one',
+    l3: 'Conclude with your recommendation, not a list'
+  },
+  'issue-tree': {
+    l1: 'State the metric drop → branch (platform / cohort / funnel step / external) → drill the most likely branch',
+    l2: 'For each branch: what data would confirm or rule it out?',
+    l3: 'Root cause, not symptom — say "because of X, not just Y went down"'
+  },
+  'RICE': {
+    l1: 'Score each option: Reach × Impact × Confidence / Effort → highest wins',
+    l2: 'State your assumptions; Confidence = how sure you are, 0–100%',
+    l3: 'Conclude with the ranked list and your recommendation'
+  },
+  'PREP': {
+    l1: 'Point (conclusion first) → Reason → Example → Point (restate)',
+    l2: 'Lead with the answer; interviewers won\'t wait for it',
+    l3: 'One PREP answer = ≤4 sentences'
+  }
+};
+
+// LESSONS[30] — 30-day lesson map (static; AI only gives feedback on answers)
+// Each normal-day entry: {concept, detail, workedExample, framework, guidedStep, isReview:false}
+// Each review-day entry (indices 6,13,20,27): {concept, isReview:true, frameworks:[...], detail:'', workedExample:'', guidedStep:''}
+const LESSONS = [
+// Day 1 — JTBD / CIRCLES
+{
+  concept: 'JTBD: solve the root job, not the surface request',
+  detail: 'Users don\'t want features — they want outcomes. Jobs-to-be-done reframes your design question from "what should we build?" to "what job is the user hiring this product to do?". The job is the stable goal; the feature is just one way to achieve it.',
+  workedExample: 'Customers: small business owners sending invoices. I\'d focus on the owner who needs to get paid reliably, not the bookkeeper who wants reports. Their core job: confidence that money will arrive. Needs: instant, visible confirmation. I\'d prioritise a real-time payment confirmation over more payment methods, because the job is certainty, not choice. Recommendation: redesign the confirmation screen first.',
+  framework: 'CIRCLES',
+  guidedStep: 'Try opening with: "The customers I\'d focus on are..."',
+  isReview: false
+},
+// Day 2 — User personas / CIRCLES
+{
+  concept: 'User personas: who you\'re really building for',
+  detail: 'A persona is a research-grounded profile of a user type — not a marketing archetype. Good personas name the behaviour, not the demographic. They answer: what goal is this person trying to achieve, and what is stopping them?',
+  workedExample: 'Customers: I\'d segment into two personas — the solo freelancer sending 3–5 invoices monthly, and the small agency owner sending 20+. I\'d focus on the freelancer: they\'re the majority, and the job is "get paid fast without chasing". Needs: real-time status, no bank app check required. Recommendation: a confirmation screen with a payment reference number and estimated arrival time.',
+  framework: 'CIRCLES',
+  guidedStep: 'Try opening with: "If I had to pick one user segment to focus on, it would be..."',
+  isReview: false
+},
+// Day 3 — Insight vs data / CIRCLES
+{
+  concept: 'Insight vs data: "so what?" is the point',
+  detail: 'Data is a fact. An insight is the non-obvious conclusion you draw from it. "Conversion is 59%" is data. "One in four users who start checkout won\'t finish — and the drop is steepest on mobile at the confirmation step" is an insight. Insights drive decisions; data alone doesn\'t.',
+  workedExample: 'Customers: mobile users under 30. I identified the insight: abandonment spikes at the payment confirmation step — not at card entry. That means users enter their card but don\'t trust the confirmation. Needs: visible proof the payment succeeded. Recommendation: redesign the confirmation screen to show a reference number within 1 second of submission.',
+  framework: 'CIRCLES',
+  guidedStep: 'Try opening with: "The insight from the data was..."',
+  isReview: false
+},
+// Day 4 — Assumptions → validation / CIRCLES
+{
+  concept: 'Assumptions → validation → decision',
+  detail: 'Every product decision rests on assumptions. The PM\'s job is to surface them, rank them by risk, and validate the riskiest ones before committing resources. An unvalidated assumption is a future sprint wasted.',
+  workedExample: 'Point: I\'d delay building multi-currency until we validate that users actually invoice internationally. Reason: our top assumption is that 30% of users need it — but we\'ve never asked. Example: a 2-week discovery sprint with 10 user interviews would confirm or kill the assumption before we spend 6 engineering weeks. Point: validate the assumption first, then commit the roadmap.',
+  framework: 'CIRCLES',
+  guidedStep: 'Try opening with: "Before committing to a solution, I\'d want to validate..."',
+  isReview: false
+},
+// Day 5 — North Star Metric / Issue tree
+{
+  concept: 'North Star Metric: one number to rule them all',
+  detail: 'The NSM is the single metric that best captures the value your product delivers to users. It aligns the team because improving it means improving user outcomes. When a metric drops, an issue tree helps you diagnose which branch caused it.',
+  workedExample: 'The metric I\'d track is successful payments per active user per month. It dropped 15% overnight. I\'d branch the issue tree: platform (iOS vs Android), payment method (card vs UPI), user cohort (new vs returning), and funnel step (card entry vs confirmation). I\'d drill the funnel step branch first — it\'s the most likely culprit given recent deploys. For each branch: what data confirms or rules it out?',
+  framework: 'issue-tree',
+  guidedStep: 'Try opening with: "The metric dropped — I\'d first branch by..."',
+  isReview: false
+},
+// Day 6 — Funnel analysis / Issue tree
+{
+  concept: 'Funnel analysis: where do users fall off?',
+  detail: 'A funnel shows how users move through a multi-step flow and where they drop. The goal isn\'t to fix every step — it\'s to find the step with the biggest drop and the highest-confidence fix. Fix the biggest leak first.',
+  workedExample: 'Payment funnel: 100 start → 90 enter card → 80 confirm → 72 complete. The biggest drop is between confirm and complete (8 points). I\'d branch: technical failure (check error rate), latency (p95 at that step), and UX confusion (session recordings). If error rate is elevated, I\'d drill the error codes. Root cause, not symptom — say "because of a 400ms regression on the confirm API, not just completion dropped".',
+  framework: 'issue-tree',
+  guidedStep: 'Try opening with: "Looking at the funnel, the biggest drop is at..."',
+  isReview: false
+},
+// Day 7 — REVIEW (index 6)
+{
+  concept: 'Review: CIRCLES + Issue tree',
+  detail: '',
+  workedExample: '',
+  framework: 'Interleaved',
+  frameworks: ['CIRCLES', 'issue-tree'],
+  guidedStep: '',
+  isReview: true
+},
+// Day 8 — A/B testing / Issue tree
+{
+  concept: 'A/B testing: when data beats opinion',
+  detail: 'An A/B test is a controlled experiment that isolates one variable and measures its effect on a metric. Define your hypothesis, success metric, and minimum detectable effect before you run it. Run until statistical significance — not until you like the result.',
+  workedExample: 'Conversion dropped 13 points. Hypothesis: the new confirmation screen causes anxiety because it lacks a reference number. Test: variant A (current) vs variant B (adds reference number). Success metric: completion rate on mobile, 95% confidence, minimum 500 users per variant. I\'d run this test only after the issue tree ruled out technical causes — data confirms, then we design.',
+  framework: 'issue-tree',
+  guidedStep: 'Try opening with: "To confirm the root cause, I\'d run an A/B test where..."',
+  isReview: false
+},
+// Day 9 — RICE scoring
+{
+  concept: 'RICE scoring: math beats gut',
+  detail: 'RICE gives every roadmap item a comparable score: Reach × Impact × Confidence / Effort. The power is making trade-offs visible. When everyone agrees on the formula, the debate shifts from "my idea vs yours" to "your assumptions vs mine".',
+  workedExample: 'Three features competing for one sprint: (1) payment reference number — Reach 5000/week, Impact 2, Confidence 90%, Effort 1 week → RICE 9000. (2) receipt PDF — Reach 2000/week, Impact 1, Confidence 70%, Effort 3 weeks → RICE 467. (3) multi-currency — Reach 500/week, Impact 3, Confidence 60%, Effort 8 weeks → RICE 113. I\'d ship the reference number first. Highest-reach, lowest-effort.',
+  framework: 'RICE',
+  guidedStep: 'Try opening with: "I\'d score each option on RICE and the highest would be..."',
+  isReview: false
+},
+// Day 10 — Opportunity cost / RICE
+{
+  concept: 'Opportunity cost: every yes is a no elsewhere',
+  detail: 'Every sprint you spend on feature X is a sprint you\'re not spending on something else. Making opportunity cost explicit in every prioritisation conversation changes how stakeholders argue. "We should build this" becomes "we should build this instead of that".',
+  workedExample: 'Sales wants the reporting feature (RICE: 300). Engineering wants to fix tech debt (RICE: 450). Leadership wants a growth experiment (RICE: 600). I\'d recommend the growth experiment — but I\'d name the opportunity cost explicitly: "By choosing growth, we delay reporting by 6 weeks. Sales loses 2 contract renewals that depend on it. Is that trade-off acceptable?" That\'s the conversation we need first.',
+  framework: 'RICE',
+  guidedStep: 'Try opening with: "The opportunity cost of choosing X is..."',
+  isReview: false
+},
+// Day 11 — MVP / RICE
+{
+  concept: 'MVP: smallest thing that tests the hypothesis',
+  detail: 'An MVP is not half the features — it\'s the minimum to test whether the core value is real. The question is: what\'s the cheapest way to find out if users will do the thing we\'re building for? Validate the assumption before spending engineering capacity.',
+  workedExample: 'Hypothesis: users will pay for a 24-hour settlement feature. MVP: manual settlement confirmation via WhatsApp — no app, no code. RICE: Reach 50 power users, Impact 3, Confidence 40%, Effort 2 days → score 30. After validation with positive signal, re-score with high confidence and a full build. The MVP\'s job is to change the confidence number.',
+  framework: 'RICE',
+  guidedStep: 'Try opening with: "The minimum to test this hypothesis would be..."',
+  isReview: false
+},
+// Day 12 — Trade-offs / RICE
+{
+  concept: 'Trade-offs: naming what you\'re giving up',
+  detail: 'Every prioritisation decision is a trade-off. The PM\'s job is to name it explicitly. "We\'re shipping the payment fix this sprint" means "we\'re not shipping the reporting feature". Making the give-up visible gets stakeholders to actively choose, not passively accept.',
+  workedExample: 'Point: I\'d recommend prioritising the payment fix over the reporting feature this sprint. Reason: payment conversion is the company\'s NSM and it\'s down 13 points; reporting is a retention feature for a segment that churns at half the rate. Example: RICE scores are 1200 vs 300. The trade-off is 6 more weeks before Sales gets reporting. Point: given the NSM impact, the trade-off is correct — and I\'d communicate it to Sales before the sprint starts.',
+  framework: 'RICE',
+  guidedStep: 'Try opening with: "The trade-off I\'m making is..."',
+  isReview: false
+},
+// Day 13 — Product vision / PREP
+{
+  concept: 'Product vision as a 3–5 year anchor',
+  detail: 'A product vision is a concise, inspiring statement of what the product will become in 3–5 years. It\'s not a roadmap — it\'s the tie-breaker when every stakeholder pulls in a different direction. A good vision is specific enough to say no with, but broad enough to allow many paths to get there.',
+  workedExample: 'Point: our vision is to become the payments layer every Indian freelancer and SMB uses to get paid — reliably, in under 10 seconds. Reason: 50 million freelancers invoice monthly with no real-time confirmation; they\'re underserved. Example: our early payments product is the first step — fast confirmation builds trust, trust drives adoption. Point: every roadmap decision should bring us closer to "trusted default for getting paid in India".',
+  framework: 'PREP',
+  guidedStep: 'Try opening with: "My recommendation is... Here\'s why..."',
+  isReview: false
+},
+// Day 14 — REVIEW (index 13)
+{
+  concept: 'Review: Issue tree + RICE + PREP',
+  detail: '',
+  workedExample: '',
+  framework: 'Interleaved',
+  frameworks: ['issue-tree', 'RICE', 'PREP'],
+  guidedStep: '',
+  isReview: true
+},
+// Day 15 — Competitive moats / PREP
+{
+  concept: 'Competitive moats: why you\'re hard to displace',
+  detail: 'A moat is a durable advantage that makes it hard for competitors to displace you. The four main moats are network effects, switching costs, data advantages, and brand. As a PM, you design moats into the product — not just features.',
+  workedExample: 'Point: our moat is switching cost, not features. Reason: once a business\'s finance team builds their reconciliation workflow around our exports, switching costs 3 months of re-training and data migration. Example: accounts using our exports for 12+ months churn at 2% annually vs 18% for newer accounts. Point: I\'d invest in making our reports irreplaceable — custom fields, accounting software integrations, and 2-year export history.',
+  framework: 'PREP',
+  guidedStep: 'Try opening with: "Our durable advantage is..."',
+  isReview: false
+},
+// Day 16 — PMF / PREP
+{
+  concept: 'PMF: when you stop pushing and start being pulled',
+  detail: 'Product-market fit is the state where a product satisfies a strong market demand. The signal is not metrics — it\'s users pulling you, not you pushing them. Users come back without prompting, refer others without incentive, and complain loudly if the product goes away.',
+  workedExample: 'Point: I\'d argue we\'ve reached PMF in the SMB segment, not enterprise. Reason: organic referrals among SMBs are outpacing paid acquisition 2:1; enterprise clients require a 3-month sales cycle and churn at 25%. Example: the Sean Ellis test — 44% of SMBs say they\'d be "very disappointed" if we disappeared vs 18% of enterprise clients. Point: I\'d double down on SMB and park enterprise for 12 months.',
+  framework: 'PREP',
+  guidedStep: 'Try opening with: "The evidence for where we have PMF is..."',
+  isReview: false
+},
+// Day 17 — STAR storytelling
+{
+  concept: 'STAR storytelling: proof over claims',
+  detail: 'STAR gives your stories structure: Situation, Task, Action, Result. The trap is spending too long on Situation and skipping Action. What you specifically did is what interviewers are evaluating. Lead with the number in your Result.',
+  workedExample: 'Situation: payment conversion dropped from 72% to 59% two days after a backend deploy. Task: I owned the investigation and fix within 48 hours. Action: I pulled error logs, identified a 400ms latency regression on the confirmation API, wrote the incident report, and coordinated a rollback with the engineering lead. Result: conversion recovered to 71% within 6 hours of the rollback — 12 points above the original drop. I followed up with a post-mortem that surfaced three missing monitoring alerts.',
+  framework: 'STAR',
+  guidedStep: 'Try opening with: "In that situation, what I specifically did was..."',
+  isReview: false
+},
+// Day 18 — Launch / STAR
+{
+  concept: 'Launch: checklist → rollout → post-mortem',
+  detail: 'A launch is not a single event — it\'s a phased process with a checklist before, a rollout plan during, and a post-mortem after. The PM owns the go/no-go decision at each gate. The checklist prevents surprises; the rollout limits blast radius; the post-mortem closes the learning loop.',
+  workedExample: 'Situation: launching a new payment confirmation redesign. Task: I owned the go/no-go for the rollout. Action: I ran the launch checklist, started at 1% rollout, watched error rate and conversion in real-time, expanded to 10% after 2 hours, and caught a mobile-specific bug at 20% that we rolled back. Result: we shipped to 100% five days later — zero customer-facing incidents. The phased rollout saved us from a full outage.',
+  framework: 'STAR',
+  guidedStep: 'Try opening with: "The situation I launched was... Here\'s what I specifically did..."',
+  isReview: false
+},
+// Day 19 — Risk register / STAR
+{
+  concept: 'Risk register: think before the fire',
+  detail: 'A risk register forces you to identify what could go wrong before it does. For each risk: probability, impact, and mitigation plan. The discipline is in doing it before the sprint, not after the incident. PMs who keep risk registers are rarely surprised.',
+  workedExample: 'Situation: launching an AI document extraction feature with 94% accuracy. Task: decide whether to ship with a human-in-the-loop fallback. Action: I wrote the risk register — top risk: hallucination on high-value extractions (probability medium, impact critical). Mitigation: auto-flag extractions above ₹1 lakh for human review. Result: we shipped on time with the fallback in place. In the first month, 3% of extractions were flagged; zero customer complaints about incorrect data.',
+  framework: 'STAR',
+  guidedStep: 'Try opening with: "Before we shipped, I identified the top risks as..."',
+  isReview: false
+},
+// Day 20 — Retrospective / STAR
+{
+  concept: 'Retrospective: learning loops',
+  detail: 'A retrospective is a team meeting after a sprint or project to surface what worked, what didn\'t, and what to change next time. The PM\'s job is to make it safe to say what didn\'t work. One actionable change per retro beats a list of complaints.',
+  workedExample: 'Situation: after a sprint where we missed the launch by 3 days, I ran a retrospective. Task: surface the root cause without blame. Action: I used the start/stop/keep format and pushed for specifics — "acceptance criteria were unclear" became "we didn\'t review acceptance criteria with QA before the sprint". Result: we changed one process: QA now signs off on acceptance criteria before sprint planning. Next sprint delivered on time — that one change saved 2 days of back-and-forth every sprint.',
+  framework: 'STAR',
+  guidedStep: 'Try opening with: "What I learned from the retrospective that I changed was..."',
+  isReview: false
+},
+// Day 21 — REVIEW (index 20)
+{
+  concept: 'Review: CIRCLES + Issue tree + RICE + PREP + STAR',
+  detail: '',
+  workedExample: '',
+  framework: 'Interleaved',
+  frameworks: ['CIRCLES', 'issue-tree', 'RICE', 'PREP', 'STAR'],
+  guidedStep: '',
+  isReview: true
+},
+// Day 22 — BLUF / PREP
+{
+  concept: 'BLUF: conclusion first, evidence second',
+  detail: 'BLUF (Bottom Line Up Front) is the most important communication skill for PMs. Interviewers and executives read the first two sentences. If your recommendation is in paragraph 3, it won\'t land. Lead with what you\'d do, then explain why.',
+  workedExample: 'Point: I recommend we delay the launch by 2 weeks. Reason: payment error rate is 3× our threshold on mobile — shipping now risks 15,000 users hitting payment failures on day one. Example: our last launch with an elevated error rate resulted in a 20-point NPS drop that took 6 weeks to recover. Point: the 2-week delay is the right trade-off — and I\'ve drafted the stakeholder communication.',
+  framework: 'PREP',
+  guidedStep: 'Try opening with: "My recommendation is... The reason is..."',
+  isReview: false
+},
+// Day 23 — DACI + influence without authority / STAR
+{
+  concept: 'DACI + influence without authority',
+  detail: 'DACI clarifies who makes decisions: Driver, Approver, Contributors, Informed. PMs lead without authority — they influence through shared goals, data, and relationships. When you disagree with a senior stakeholder, you need a framework for the conversation, not just an opinion.',
+  workedExample: 'Situation: the engineering VP wanted to delay the payment redesign by 4 weeks for tech debt; I believed the conversion impact couldn\'t wait. Task: influence without authority. Action: I prepared data on the revenue cost of the delay (₹8 lakh/week in lost conversions), set up a DACI — I was Driver, VP Engineering was Approver — and proposed a compromise: 2 weeks of parallel work. Result: VP approved the compromise. We shipped 2 weeks later with zero tech debt regression.',
+  framework: 'STAR',
+  guidedStep: 'Try opening with: "The situation where I had to influence without authority was..."',
+  isReview: false
+},
+// Day 24 — AARRR / Issue tree
+{
+  concept: 'AARRR: diagnosing the leaky funnel',
+  detail: 'AARRR maps your growth funnel: Acquisition, Activation, Retention, Referral, Revenue. When growth stalls, use it as a diagnostic tree — find which stage is the leak before deciding what to fix. Pouring more users into a leaky bucket is expensive.',
+  workedExample: 'Growth stalled. I\'d branch the AARRR issue tree: Acquisition is healthy (5,000 installs/week). Activation is 35% — below the 50% benchmark. I\'d drill Activation: map every step from install to first payment, instrument drop-off at each. Data shows 60% of users who start the bank-link step abandon it. Root cause: the third-party bank-link UI is slow and unfamiliar. Fix: add a trust message and reduce from 4 screens to 2.',
+  framework: 'issue-tree',
+  guidedStep: 'Try opening with: "Looking at AARRR, the stage that\'s leaking is..."',
+  isReview: false
+},
+// Day 25 — Growth loops / Issue tree
+{
+  concept: 'Growth loops: compounding without buying users',
+  detail: 'A growth loop is a self-reinforcing cycle where product usage drives more usage. Unlike a funnel (linear), a loop compounds. The best growth strategy is finding a loop in your product and investing in making it faster.',
+  workedExample: 'Our invoice feature has a natural loop: sender invites recipient → recipient signs up to pay → recipient becomes a sender → they invite their customers. I\'d diagnose the loop: 40% of recipients sign up but only 20% become senders. The loop is broken at that step. Drilling the branch: users don\'t know they can send. Fix: a post-payment prompt — "Now get paid the same way". That closes the loop.',
+  framework: 'issue-tree',
+  guidedStep: 'Try opening with: "The growth loop in this product is... and the break point is..."',
+  isReview: false
+},
+// Day 26 — Retention > acquisition / Issue tree
+{
+  concept: 'Retention > acquisition at early stage',
+  detail: 'At early stage, fixing retention before scaling acquisition is almost always the right call. Acquiring users into a leaky bucket is expensive. A 10-point retention improvement is worth more than doubling your acquisition budget — it compounds over the lifetime of the user.',
+  workedExample: 'Acquisition is 5,000 installs/week. D30 retention is 22%. I\'d branch: segment by cohort — users who completed bank-link retain at 2× rate. Root cause: bank-link completion is 35%. This is not an acquisition problem — it\'s an activation and retention problem. I\'d pause paid acquisition and run a 2-sprint retention experiment: redesign the bank-link step. If D30 retention reaches 35%, resume acquisition scale.',
+  framework: 'issue-tree',
+  guidedStep: 'Try opening with: "Before scaling acquisition, I\'d fix retention because..."',
+  isReview: false
+},
+// Day 27 — AI product spec / RICE
+{
+  concept: 'AI product spec: accuracy target + fallback',
+  detail: 'An AI feature spec has two parts a regular spec doesn\'t: an accuracy target (what does "good enough" mean, in numbers) and a fallback behaviour (what happens when the model is wrong or slow). Without these, you don\'t have a definition of done.',
+  workedExample: 'Feature: auto-extract invoice total using an LLM. RICE: Reach 10,000 invoices/month, Impact 3, Confidence 70%, Effort 4 weeks → score 5,250. Accuracy target: 94% precision, 91% recall, based on a 500-invoice evaluation dataset. Fallback: if confidence score is below 80%, flag for manual review. Without the accuracy target and fallback, this spec isn\'t a spec — it\'s a wish.',
+  framework: 'RICE',
+  guidedStep: 'Try opening with: "The AI feature I\'d scope would need an accuracy target of..."',
+  isReview: false
+},
+// Day 28 — REVIEW (index 27)
+{
+  concept: 'Final review: all five frameworks interleaved',
+  detail: '',
+  workedExample: '',
+  framework: 'Interleaved',
+  frameworks: ['CIRCLES', 'issue-tree', 'RICE', 'PREP', 'STAR'],
+  guidedStep: '',
+  isReview: true
+},
+// Day 29 — Hallucination + guardrails / PREP
+{
+  concept: 'Hallucination + guardrails: what goes wrong with AI',
+  detail: 'Hallucination is when an LLM generates confident-sounding but incorrect output. For a PM, the question isn\'t whether it will happen — it will. The question is: what guardrails prevent it from reaching the user, and what happens when it does?',
+  workedExample: 'Point: before shipping any AI feature, I\'d define the hallucination scenario and its guardrail. Reason: without a guardrail, a hallucinated invoice total can cost a business money and destroy trust in a single bad extraction. Example: in our document pipeline, we set a confidence threshold — if the model scores below 80%, a human reviews it. Result: error rate dropped from 8% to 1.2%. Point: a guardrail is not a feature trade-off — it\'s the definition of done for any AI feature that touches money or identity.',
+  framework: 'PREP',
+  guidedStep: 'Try opening with: "The guardrail I\'d put in place for this AI feature is..."',
+  isReview: false
+},
+// Day 30 — Build AI PM instincts / PREP
+{
+  concept: 'Build AI PM instincts',
+  detail: 'The AI PM\'s job is to know when to use AI and when not to, how to scope AI features responsibly, and how to evaluate outputs without being a data scientist. The core instinct: use AI when the problem is pattern recognition at scale; use rules when a rule would do.',
+  workedExample: 'Point: before building any AI feature, I ask four questions. Reason: they expose the gaps in the brief before engineering starts. Example: What\'s the non-AI version, and what percentage of the value does it cover? What data do I have to evaluate the model? What does a wrong answer cost the user — and do I have a fallback? Who reviews the AI\'s decisions, and what\'s my human-in-the-loop threshold? Point: a PM who can answer all four before the first sprint has the instincts needed to own an AI feature.',
+  framework: 'PREP',
+  guidedStep: 'Try opening with: "The question I always ask before building an AI feature is..."',
+  isReview: false
+}
+];
