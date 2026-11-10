@@ -23,7 +23,7 @@ if (typeof LOGIC !== 'undefined' && !(data._version >= 3)) {
   save();
 }
 
-const day = () => Math.max(1, Math.min(30, +data.day || 1));
+const day = () => Math.max(1, +data.day || 1);
 
 // ── Passcode modal ────────────────────────────────────────────────────────
 (function(){
@@ -220,7 +220,7 @@ if (!data.dayStartedDate) {
   data.dayStartedDate = todayStr;
   save();
 } else if (LOGIC.shouldAdvanceProgrammeDay(data.dayStartedDate, data['d-' + data.dayStartedDate], todayStr)) {
-  data.day = Math.min(30, (data.day || 1) + 1);
+  data.day = (data.day || 1) + 1;
   data.dayStartedDate = todayStr;
   save();
 }
@@ -391,20 +391,21 @@ function renderGrid() {
   html += '<span style="color:var(--green);font-weight:700;font-size:18px">' + esc(streakStr) + '</span>';
   if (longest > 0) html += '<span class="muted small">&nbsp;· longest: ' + longest + ' day' + (longest === 1 ? '' : 's') + '</span>';
   html += '</div>';
-  html += '<details open><summary class="small muted" style="cursor:pointer;margin-bottom:6px">30-day progress</summary>';
+  html += '<details open><summary class="small muted" style="cursor:pointer;margin-bottom:6px">' + (day() > 30 ? 'Last 30 days' : '30-day progress') + '</summary>';
   html += '<div class="day-grid">';
+  var off = Math.max(0, day() - 30);
   for (var i = 1; i <= 30; i++) {
-    var dateForDay = LOGIC.addDays(todayStr, i - day());
+    var dateForDay = LOGIC.addDays(todayStr, i + off - day());
     var dd = data['d-' + dateForDay];
     var complete = dd && (dd.complete === true || dd.step >= 5);
-    var isToday = (i === day());
-    var isFuture = (i > day());
+    var isToday = (i + off === day());
+    var isFuture = (i + off > day());
     var style;
     if (complete) style = 'background:var(--green);border-color:var(--green)';
     else if (isToday) style = 'background:var(--accent);border-color:var(--accent)';
     else if (isFuture) style = 'background:transparent;border-color:var(--line)';
     else style = 'background:var(--panel2);border-color:var(--line)';
-    html += '<div class="day-dot" title="Day ' + i + '" style="' + style + '"></div>';
+    html += '<div class="day-dot" title="Day ' + (i + off) + '" style="' + style + '"></div>';
   }
   html += '</div></details>';
   return html;
@@ -458,7 +459,7 @@ function renderEntry(dayData) {
 }
 
 // ── Render: day summary ───────────────────────────────────────────────────
-function isReviewDay() { var l = LESSONS[Math.min(day()-1, LESSONS.length-1)]; return !!(l && l.isReview); }
+function isReviewDay() { return LOGIC.isReviewDayNum(day(), LESSONS); }
 
 function renderSummary(dayData) {
   var streak = LOGIC.computeStreak(data, todayStr);
@@ -468,7 +469,7 @@ function renderSummary(dayData) {
 
   var html = '<h1>Done for today!</h1>';
   html += '<div class="row" style="margin:12px 0">';
-  html += '<span>Day ' + day() + '/30</span>';
+  html += '<span>Day ' + day() + (day() > 30 ? ' · Endless' : '/30') + '</span>';
   html += '<span>· ' + learnedCount + ' word' + (learnedCount === 1 ? '' : 's') + ' learned</span>';
   html += '<span>· Streak: ' + streak + ' day' + (streak === 1 ? '' : 's') + '</span>';
   html += '</div>';
@@ -518,13 +519,13 @@ function findTermById(id) {
       if (VOCAB[d][t].id === id) return VOCAB[d][t];
     }
   }
+  var packs = data.endless || {}; for (var k in packs) { var ws = packs[k].words || []; for (var j = 0; j < ws.length; j++) if (ws[j].id === id) return ws[j]; }
   return null;
 }
 
 // ── Helper: today's 5 vocab terms ────────────────────────────────────────
 function todayTerms() {
-  var dayIdx = Math.max(0, Math.min(day() - 1, VOCAB.length - 1));
-  return VOCAB[dayIdx] || [];
+  return dayWords();
 }
 
 // ── Helper: word IDs the user has reviewed at least once (box >= 2) ───────
@@ -532,6 +533,55 @@ function learnedWordIds() {
   return Object.keys(data.vocab || {}).filter(function(id) {
     return (data.vocab[id].box || 1) >= 2;
   });
+}
+
+// ── Day content (Phase 4): built-in for days 1-30, stored pack for 31+ ──
+var BUILTIN = { VOCAB: VOCAB, QUESTIONS: QUESTIONS, CASES: CASES, INTERVIEW: INTERVIEW, LESSONS: LESSONS };
+function dayPack() { return day() > 30 ? (data.endless || {})[day()] || null : null; }
+function dayWords() { var p = dayPack(); return p ? p.words : (VOCAB[Math.min(day() - 1, VOCAB.length - 1)] || []); }
+function dayQuestion() { var p = dayPack(); return p ? p.question : QUESTIONS[(day() - 1) % QUESTIONS.length]; }
+function dayLesson() { var p = dayPack(); return p ? p.lesson : LESSONS[Math.min(day() - 1, LESSONS.length - 1)]; }
+function dayCase() {
+  var p = dayPack(); if (p) return p.case;
+  var vd = data['d-' + todayStr];
+  if (!vd || vd.caseIdx === undefined) {
+    var i = CASES.indexOf(LOGIC.selectByWeakSpot(CASES, LOGIC.computeTopWeakSpots(data, todayStr)));
+    if (i < 0) i = (day() - 1) % CASES.length;
+    if (!vd) return CASES[i];
+    vd.caseIdx = i; save();
+  }
+  return CASES[vd.caseIdx];
+}
+function dayInterview() {
+  var p = dayPack(); if (p) return p.interview;
+  var vd = data['d-' + todayStr];
+  if (!vd || vd.interviewIdx === undefined) {
+    var i = INTERVIEW.indexOf(LOGIC.selectByWeakSpot(INTERVIEW, LOGIC.computeTopWeakSpots(data, todayStr)));
+    if (i < 0) i = (day() - 1) % INTERVIEW.length;
+    if (!vd) return INTERVIEW[i];
+    vd.interviewIdx = i; save();
+  }
+  return INTERVIEW[vd.interviewIdx];
+}
+
+// One AI call per endless day; any failure → remixed built-in day (END-02). Never rejects.
+function buildEndlessDay() {
+  var n = day(), topTags = LOGIC.computeTopWeakSpots(data, todayStr);
+  var seen = LOGIC.collectSeen(BUILTIN, data.endless);
+  var remix = function() { return LOGIC.remixDay(n, BUILTIN, data.vocab, topTags); };
+  var th = document.getElementById('thinking');
+  if (th) th.classList.remove('hidden');
+  return workerCall('generate', {
+    dayNum: n, topTags: topTags,
+    seenTerms: seen.terms.slice(-500), seenQuestions: seen.questions.slice(-120),
+    resumeExcerpt: (localStorage.getItem('recallResume') || '').slice(0, 1500)
+  }).then(function(res) { return LOGIC.validateGeneratedDay(res, seen, n) || remix(); }, remix)
+    .then(function(p) {
+      if (th) th.classList.add('hidden');
+      data.endless = data.endless || {};
+      data.endless[n] = p;
+      save();
+    });
 }
 
 // ── Helper: framework cheat card details element ──────────────────────────
@@ -626,9 +676,9 @@ function runVocabAICheck() {
 
 // ── Render: vocab step ────────────────────────────────────────────────────
 function renderVocab(container) {
-  var dayIdx = Math.min(day() - 1, VOCAB.length - 1);
-  var newTerms = dayIdx < VOCAB.length ? VOCAB[dayIdx] : [];
+  var newTerms = dayWords();
   var reviewIds = LOGIC.selectReviewWords(data.vocab || {}, todayStr, 5);
+  reviewIds = reviewIds.filter(function(id) { return !newTerms.some(function(t) { return t.id === id; }); });
 
   var vd = data['d-' + todayStr];
   if (!vd.vocab) {
@@ -654,8 +704,7 @@ function renderVocab(container) {
 
   // Micro-lesson card (LEARN-07) — skip on review days (handled by 03-04)
   if (typeof LESSONS !== 'undefined') {
-    var lessonIdx = Math.max(0, Math.min(day() - 1, LESSONS.length - 1));
-    var lesson = LESSONS[lessonIdx];
+    var lesson = dayLesson();
     if (lesson && !lesson.isReview) {
       html += '<div class="card" style="margin-bottom:12px">';
       html += '<h2>' + esc(lesson.concept) + '</h2>';
@@ -682,12 +731,8 @@ function renderVocab(container) {
 
   if (newTerms.length > 0) {
     newTerms.forEach(function(term) {
-      html += renderVocabCard(term, 'New word', vocabDayData);
+      html += renderVocabCard(term, (dayPack() && dayPack().source === 'remix') ? 'Refresh (offline day)' : 'New word', vocabDayData);
     });
-  } else {
-    if (reviewIds.length > 0) {
-      html += '<p class="muted" style="margin-top:12px">Endless mode arrives later — keep reviewing your words</p>';
-    }
   }
 
   html += '<button class="btn primary" data-action="step-next" style="width:100%;margin-top:8px">Save &amp; continue →</button>';
@@ -788,8 +833,7 @@ function renderSpeakStep(container) {
   stop();
   accumulated = ''; fromSpeech = false;
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  var qIdx = (day() - 1) % QUESTIONS.length;
-  var q = QUESTIONS[qIdx]; // {text, framework}
+  var q = dayQuestion();
 
   var html = '<div class="card">';
   html += '<div class="row"><span class="tag">~5 min</span></div>';
@@ -833,19 +877,7 @@ function renderCaseStep(container) {
   stop();
   accumulated = ''; fromSpeech = false;
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  // Stable weak-spot selection (WEAK-03): store chosen index so reload picks same case
-  var vdC = data['d-' + todayStr] || {};
-  var cIdx;
-  if (vdC.caseIdx !== undefined) {
-    cIdx = vdC.caseIdx;
-  } else {
-    var topTagsC = LOGIC.computeTopWeakSpots(data, todayStr);
-    var selC = LOGIC.selectByWeakSpot(CASES, topTagsC);
-    cIdx = selC ? CASES.indexOf(selC) : -1;
-    if (cIdx < 0) cIdx = (day()-1) % CASES.length;
-    if (data['d-' + todayStr]) { data['d-' + todayStr].caseIdx = cIdx; save(); }
-  }
-  var c = CASES[cIdx]; // {title, scenario, reasoning, framework, targetsTags}
+  var c = dayCase();
 
   var html = '<div class="card">';
   html += '<div class="row"><span class="tag">~7 min</span></div>';
@@ -878,19 +910,7 @@ function renderInterviewStep(container) {
   accumulated = ''; fromSpeech = false;
   firstAnswerText = ''; firstFromSpeech = false; firstFillerCount = 0;
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  // Stable weak-spot selection (WEAK-03): store chosen index so reload picks same question
-  var vdI = data['d-' + todayStr] || {};
-  var qIdx;
-  if (vdI.interviewIdx !== undefined) {
-    qIdx = vdI.interviewIdx;
-  } else {
-    var topTagsI = LOGIC.computeTopWeakSpots(data, todayStr);
-    var selI = LOGIC.selectByWeakSpot(INTERVIEW, topTagsI);
-    qIdx = selI ? INTERVIEW.indexOf(selI) : -1;
-    if (qIdx < 0) qIdx = (day()-1) % INTERVIEW.length;
-    if (data['d-' + todayStr]) { data['d-' + todayStr].interviewIdx = qIdx; save(); }
-  }
-  var q = INTERVIEW[qIdx]; // {category, question, framework, targetsTags}
+  var q = dayInterview();
 
   var html = '<div class="card" id="interviewCard">';
   html += '<div class="row"><span class="tag">~5 min</span></div>';
@@ -960,7 +980,7 @@ function goToStep(n) {
     vd.complete = true;
     // Store lesson concept for tomorrow's teach-back (LEARN-08)
     if (typeof LESSONS !== 'undefined') {
-      vd.lesson = { concept: (LESSONS[Math.min(day()-1, LESSONS.length-1)] || {}).concept || '' };
+      vd.lesson = { concept: (dayLesson() || {}).concept || '' };
     }
   }
   save();
@@ -1013,6 +1033,11 @@ document.addEventListener('click', function(e) {
     if (!data['d-' + todayStr]) data['d-' + todayStr] = { step: 0, complete: false };
     stop();
     var savedStep = data['d-' + todayStr].step || 0;
+    if (day() > 30 && !dayPack()) {
+      el.disabled = true; el.textContent = 'Preparing today\'s fresh practice…';
+      buildEndlessDay().then(function() { goToStep(savedStep > 0 ? savedStep : 1); });
+      return;
+    }
     goToStep(savedStep > 0 ? savedStep : 1);
     return;
   }
@@ -1191,7 +1216,7 @@ document.addEventListener('click', function(e) {
     if (!ta3 || !ta3.value.trim()) return;
     var text3 = ta3.value.trim();
     fromSpeech = !!(accumulated.trim());
-    var spQ = QUESTIONS[(day()-1) % QUESTIONS.length]; // {text, framework}
+    var spQ = dayQuestion();
     saveStepAnswer('speak', {
       question: spQ.text,
       framework: spQ.framework,
@@ -1239,14 +1264,12 @@ document.addEventListener('click', function(e) {
   if (action === 'case-submit') {
     var ta4 = document.getElementById('transcript');
     if (!ta4 || !ta4.value.trim()) return;
-    var vdCS = data['d-' + todayStr] || {};
-    var cIdx2 = vdCS.caseIdx !== undefined ? vdCS.caseIdx : (day()-1) % CASES.length;
-    var cObj = CASES[cIdx2]; // {title, scenario, reasoning, framework, targetsTags}
+    var cObj = dayCase();
     fromSpeech = !!(accumulated.trim());
     var caseText = ta4.value.trim();
     var caseQ = cObj.title + ': ' + cObj.scenario;
     saveStepAnswer('case', {
-      caseIndex: cIdx2,
+      caseIndex: CASES.indexOf(cObj),
       question: caseQ,
       framework: cObj.framework,
       text: caseText,
@@ -1328,9 +1351,7 @@ document.addEventListener('click', function(e) {
     el.style.display = 'none';
 
     // Render follow-up card
-    var vdIS = data['d-' + todayStr] || {};
-    var qIdx3 = vdIS.interviewIdx !== undefined ? vdIS.interviewIdx : (day()-1) % INTERVIEW.length;
-    var q3 = INTERVIEW[qIdx3]; // {category, question, framework, targetsTags}
+    var q3 = dayInterview();
     var followup = FOLLOWUPS[q3.category] || 'What would you do differently next time?';
     var fuHtml = '<div class="card" style="margin-top:12px"><h3>Follow-up</h3>';
     fuHtml += '<p id="followupQuestion">' + esc(followup) + '</p>';
@@ -1346,12 +1367,10 @@ document.addEventListener('click', function(e) {
   if (action === 'interview-final-submit') {
     var fuEl = document.getElementById('followupText');
     if (!fuEl || !fuEl.value.trim()) return;
-    var vdIF = data['d-' + todayStr] || {};
-    var qIdx4 = vdIF.interviewIdx !== undefined ? vdIF.interviewIdx : (day()-1) % INTERVIEW.length;
-    var ifQ = INTERVIEW[qIdx4]; // {category, question, framework, targetsTags}
+    var ifQ = dayInterview();
     var fuText = fuEl.value.trim();
     saveStepAnswer('interview', {
-      questionIndex: qIdx4,
+      questionIndex: INTERVIEW.indexOf(ifQ),
       question: ifQ.question,
       framework: ifQ.framework,
       text: firstAnswerText,
