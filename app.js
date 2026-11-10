@@ -458,6 +458,8 @@ function renderEntry(dayData) {
 }
 
 // ── Render: day summary ───────────────────────────────────────────────────
+function isReviewDay() { var l = LESSONS[Math.min(day()-1, LESSONS.length-1)]; return !!(l && l.isReview); }
+
 function renderSummary(dayData) {
   var streak = LOGIC.computeStreak(data, todayStr);
   var vocabDayData = dayData.vocab || {};
@@ -488,6 +490,11 @@ function renderSummary(dayData) {
   html += '<p><strong>Top weak spots:</strong> ' + (weakSummary.length ? weakSummary.map(esc).join(', ') : 'No weak spots yet') + '</p>';
   html += '</div>';
 
+  if (isReviewDay()) {
+    html += '<div class="card"><h2>Reflection</h2><p>What improved since your last review, and what will you drill next?</p>';
+    html += '<textarea id="reflectionText" aria-label="Reflection" placeholder="Improved: … Next I will drill: …">' + esc(dayData.reflection || '') + '</textarea>';
+    html += '<button class="btn" data-action="save-reflection">' + (dayData.reflection ? 'Saved ✓' : 'Save reflection') + '</button></div>';
+  }
   var skipped = [];
   ['recall','speak','case','interview'].forEach(function(s) {
     if (!dayData[s]) skipped.push(s);
@@ -918,48 +925,6 @@ function renderInterviewStep(container) {
   container.innerHTML = html;
 }
 
-// ── Render: review day (LEARN-10) for days 7/14/21/28 ────────────────────
-function renderReviewDay(container) {
-  var topTags = LOGIC.computeTopWeakSpots(data, todayStr);
-  var revQ = QUESTIONS[(day()-1) % QUESTIONS.length];
-  var revC = LOGIC.selectByWeakSpot(CASES, topTags) || CASES[(day()-1) % CASES.length];
-  var revI = LOGIC.selectByWeakSpot(INTERVIEW, topTags) || INTERVIEW[(day()-1) % INTERVIEW.length];
-  var vdR = data['d-' + todayStr] || {};
-  var savedRefl = vdR.reflection || '';
-
-  var html = '<div class="card">';
-  html += '<h2>Review Day ' + day() + '</h2>';
-  html += '<p class="muted">Today mixes questions from all frameworks you\'ve seen.</p>';
-
-  html += '<div style="border-top:1px solid var(--line);margin:12px 0;padding-top:12px">';
-  html += '<h3>' + esc(revQ.text) + '</h3>';
-  html += renderCheatCard(revQ.framework, day());
-  html += '<textarea placeholder="Speak or type your answer…" aria-label="Speak answer" style="margin-top:8px;min-height:100px"></textarea>';
-  html += '</div>';
-
-  html += '<div style="border-top:1px solid var(--line);margin:12px 0;padding-top:12px">';
-  html += '<h3>' + esc(revC.title) + '</h3>';
-  html += '<p class="muted">' + esc(revC.scenario) + '</p>';
-  html += renderCheatCard(revC.framework, day());
-  html += '<textarea placeholder="Speak or type your answer…" aria-label="Case answer" style="margin-top:8px;min-height:100px"></textarea>';
-  html += '</div>';
-
-  html += '<div style="border-top:1px solid var(--line);margin:12px 0;padding-top:12px">';
-  html += '<h3>' + esc(revI.question) + '</h3>';
-  html += renderCheatCard(revI.framework, day());
-  html += '<textarea placeholder="Speak or type your answer…" aria-label="Interview answer" style="margin-top:8px;min-height:100px"></textarea>';
-  html += '</div>';
-
-  html += '<div style="border-top:1px solid var(--line);margin:12px 0;padding-top:12px">';
-  html += '<h3>Reflection</h3>';
-  html += '<p>Which framework is hardest for you right now?</p>';
-  html += '<textarea id="reflectionText" placeholder="Your reflection…" aria-label="Reflection" style="margin-top:4px">' + esc(savedRefl) + '</textarea>';
-  html += '<button class="btn" data-action="save-reflection"' + (savedRefl ? ' disabled' : '') + ' style="margin-top:8px">' + (savedRefl ? 'Saved ✓' : 'Save reflection') + '</button>';
-  html += '</div>';
-  html += '</div>';
-  container.innerHTML = html;
-}
-
 // ── STEPS registry ────────────────────────────────────────────────────────
 var STEPS = {
   vocab:     { render: renderVocab,     submit: function() {} },
@@ -1028,12 +993,9 @@ function renderApp() {
   } else if (stepName === 'recall') {
     renderRecall(document.getElementById('stepContent'));
   } else {
-    var reviewLesson = typeof LESSONS !== 'undefined' && LESSONS[Math.min(day()-1, LESSONS.length-1)];
-    if (reviewLesson && reviewLesson.isReview) {
-      renderReviewDay(document.getElementById('stepContent'));
-    } else {
-      STEPS[stepName].render(document.getElementById('stepContent'));
-    }
+    STEPS[stepName].render(document.getElementById('stepContent'));
+    // ponytail: review days reuse the normal steps (coach, mic, chips); questions already span frameworks
+    if (isReviewDay()) document.getElementById('stepContent').insertAdjacentHTML('afterbegin', '<p class="tag" style="margin-bottom:10px">Review day ' + day() + ' — questions mix every framework so far; spot which one fits before you answer.</p>');
   }
 }
 
