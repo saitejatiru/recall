@@ -77,7 +77,22 @@ Plans:
   6. Vocab sentences get an AI check with a corrected sentence; the next day's recall quizzes yesterday's fix and words
   7. Each day teaches before it tests: a micro-lesson (product concept + framework with a worked example), a guided first answer, a teach-back, Socratic follow-ups; review days mix frameworks and end with a reflection
 
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+**Wave 1** (parallel)
+
+- [ ] 03-01-PLAN.md — Worker `coach` task (5 modes: answer/retry/model/vocab/teachback; system prompt + rubric; field validation; injection guard)
+- [ ] 03-02-PLAN.md — Teaching content (QUESTIONS/CASES/INTERVIEW as objects with framework+targetsTags, CHEAT_CARDS, LESSONS[30]) + logic.js pure functions (buildCoachPayload, validateCoachResponse, computeTopWeakSpots, selectByWeakSpot, detectWordChips, migrate v3)
+
+**Wave 2** (blocked on Wave 1)
+
+- [ ] 03-03-PLAN.md — app.js: AI feedback on speak/case/interview, micro-lesson card, cheat cards, word chips, try-again, model answer, vocab batch AI check, weak-spot entry banner
+
+**Wave 3** (blocked on Wave 2)
+
+- [ ] 03-04-PLAN.md — app.js: recall fix-recall quiz + teach-back, review days 7/14/21/28 with interleaved questions + metacognition reflection, adaptive case/interview selection; human verification checkpoint
+
 **UI hint**: yes
 
 ### Phase 4: Endless Mode
