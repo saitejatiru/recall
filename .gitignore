@@ -5,3 +5,6 @@
 # Node install if wrangler is used locally
 node_modules/
 wrangler.lock
+
+# agent worktrees (temporary)
+.claude/worktrees/
