@@ -628,15 +628,15 @@ function renderEntry(dayData) {
 }
 
 // ── Render: daily performance report (Phase 5) ───────────────────────────
-function renderDailyReport(dayData, dayNum) {
+function renderDailyReport(dayData, dayNum, prevDaysData) {
   if (!dayData || typeof LOGIC === 'undefined' || !LOGIC.computeDayReport) return '';
-  var rpt = LOGIC.computeDayReport(dayData);
+  var rpt = LOGIC.computeDayReport(dayData, prevDaysData);
   if (!rpt) return '';
 
   var html = '<div class="card" style="margin:16px 0;border:1px solid var(--accent);background:var(--panel2)">';
   html += '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;border-bottom:1px solid var(--line);padding-bottom:12px">';
   html += '<div><h2 style="margin:0;font-size:20px">&#128202; Day ' + esc(String(dayNum)) + ' Performance Report</h2>';
-  html += '<span class="small muted">Detailed breakdown of answers, feedback, strengths &amp; rectifications</span></div>';
+  html += '<span class="small muted">Detailed breakdown of answers, feedback, strengths, habits &amp; rectifications</span></div>';
   if (rpt.averageScore !== null) {
     var scoreColor = rpt.averageScore >= 7 ? 'var(--green)' : (rpt.averageScore >= 5 ? 'var(--accent)' : 'var(--muted)');
     html += '<div style="text-align:right">';
@@ -647,7 +647,7 @@ function renderDailyReport(dayData, dayNum) {
   html += '</div>';
 
   // Metrics summary row
-  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:10px;margin-bottom:16px">';
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(120px, 1fr));gap:8px;margin-bottom:16px">';
   html += '<div style="background:var(--panel);padding:10px;border-radius:10px;border:1px solid var(--line);text-align:center">';
   html += '<div style="font-size:20px;font-weight:800;color:var(--text)">' + rpt.scoredCount + ' / 3</div>';
   html += '<div class="small muted">Answers Coached</div></div>';
@@ -658,14 +658,44 @@ function renderDailyReport(dayData, dayNum) {
 
   html += '<div style="background:var(--panel);padding:10px;border-radius:10px;border:1px solid var(--line);text-align:center">';
   html += '<div style="font-size:20px;font-weight:800;color:' + (rpt.rectifiedCount > 0 ? 'var(--green)' : 'var(--muted)') + '">' + rpt.rectifiedCount + ' / ' + rpt.retriedCount + '</div>';
-  html += '<div class="small muted">Retries Rectified</div></div>';
+  html += '<div class="small muted">Same-Day Rectified</div></div>';
 
   html += '<div style="background:var(--panel);padding:10px;border-radius:10px;border:1px solid var(--line);text-align:center">';
-  html += '<div style="font-size:20px;font-weight:800;color:var(--text)">' + (dayData.vocab && dayData.vocab.newWords ? dayData.vocab.newWords.length : 0) + '</div>';
-  html += '<div class="small muted">Vocab Words</div></div>';
+  html += '<div style="font-size:20px;font-weight:800;color:' + (rpt.breakthroughs && rpt.breakthroughs.length > 0 ? 'var(--green)' : 'var(--muted)') + '">' + (rpt.breakthroughs ? rpt.breakthroughs.length : 0) + '</div>';
+  html += '<div class="small muted">Breakthroughs</div></div>';
+
+  html += '<div style="background:var(--panel);padding:10px;border-radius:10px;border:1px solid var(--line);text-align:center">';
+  html += '<div style="font-size:20px;font-weight:800;color:' + (rpt.repeatedHabits && rpt.repeatedHabits.length > 0 ? '#fbbf24' : 'var(--green)') + '">' + (rpt.repeatedHabits ? rpt.repeatedHabits.length : 0) + '</div>';
+  html += '<div class="small muted">Repeated Mistakes</div></div>';
   html += '</div>';
 
-  // 1. What Landed (Strengths / Good things done)
+  // 1. Cross-Day Breakthroughs (Rectified habits across days)
+  if (rpt.breakthroughs && rpt.breakthroughs.length > 0) {
+    html += '<div style="margin-bottom:16px;background:rgba(98, 214, 164, 0.12);border:1px solid var(--green);border-radius:12px;padding:12px 14px">';
+    html += '<div style="font-weight:700;color:var(--green);font-size:14px;margin-bottom:6px">&#127881; Cross-Day Breakthrough &mdash; Mistakes Rectified!</div>';
+    html += '<ul style="margin:0;padding-left:18px;font-size:13px;line-height:1.5">';
+    rpt.breakthroughs.forEach(function(b) {
+      var daysStr = b.priorDays.map(function(d){ return 'Day ' + d; }).join(', ');
+      html += '<li>You conquered <strong>' + esc(b.label) + '</strong> today! (Flagged on ' + esc(daysStr) + ' &mdash; cleanly avoided today).</li>';
+    });
+    html += '</ul>';
+    html += '</div>';
+  }
+
+  // 2. Repeated Habits Alert (Mistakes repeated across days)
+  if (rpt.repeatedHabits && rpt.repeatedHabits.length > 0) {
+    html += '<div style="margin-bottom:16px;background:rgba(245, 158, 11, 0.12);border:1px solid #f59e0b;border-radius:12px;padding:12px 14px">';
+    html += '<div style="font-weight:700;color:#fbbf24;font-size:14px;margin-bottom:6px">&#9888; Repeated Mistake Alert (Persistent Habit)</div>';
+    html += '<ul style="margin:0;padding-left:18px;font-size:13px;line-height:1.5">';
+    rpt.repeatedHabits.forEach(function(h) {
+      var daysStr = h.priorDays.map(function(d){ return 'Day ' + d; }).join(', ');
+      html += '<li><strong>' + esc(h.label) + '</strong> was repeated today (also flagged on ' + esc(daysStr) + '). Prioritize fixing this in tomorrow\'s practice.</li>';
+    });
+    html += '</ul>';
+    html += '</div>';
+  }
+
+  // 3. What Landed (Strengths / Good things done)
   if (rpt.strengths.length > 0) {
     html += '<div style="margin-bottom:16px;background:var(--panel);padding:14px;border-radius:12px;border-left:4px solid var(--green)">';
     html += '<h3 style="margin:0 0 8px;font-size:15px;color:var(--green)">&#10003; What Landed (Your Strengths)</h3>';
@@ -677,7 +707,7 @@ function renderDailyReport(dayData, dayNum) {
     html += '</div>';
   }
 
-  // 2. Step-by-Step Analysis (What you gave, mistakes, fixes, and rectifications)
+  // 4. Step-by-Step Analysis (What you gave, mistakes, fixes, and rectifications)
   if (rpt.stepAnalyses.length > 0) {
     html += '<h3 style="margin:16px 0 10px;font-size:16px">Mistakes &amp; How to Improve</h3>';
     rpt.stepAnalyses.forEach(function(sa) {
@@ -739,7 +769,7 @@ function renderDailyReport(dayData, dayNum) {
     });
   }
 
-  // 3. Vocab Sentences & AI Corrections
+  // 5. Vocab Sentences & AI Corrections
   if (rpt.vocabItems.length > 0) {
     html += '<h3 style="margin:16px 0 10px;font-size:16px">Vocabulary Check</h3>';
     html += '<div class="card" style="margin-bottom:14px;background:var(--panel);border:1px solid var(--line);padding:14px">';
@@ -761,7 +791,7 @@ function renderDailyReport(dayData, dayNum) {
     html += '</div>';
   }
 
-  // 4. Teach-Back Analysis
+  // 6. Teach-Back Analysis
   if (rpt.teachback && rpt.teachback.answer) {
     html += '<h3 style="margin:16px 0 10px;font-size:16px">Teach-Back Explanation</h3>';
     html += '<div class="card" style="margin-bottom:14px;background:var(--panel);border:1px solid var(--line);padding:14px">';
@@ -802,7 +832,17 @@ function renderSummary(dayData) {
   html += '<span>· Streak: ' + streak + ' day' + (streak === 1 ? '' : 's') + '</span>';
   html += '</div>';
 
-  html += renderDailyReport(dayData, day());
+  var prevDaysData = [];
+  var curD = day();
+  for (var p = 1; p <= 3; p++) {
+    var tD = curD - p;
+    if (tD >= 1) {
+      var pKey = dateKeyForDay(tD);
+      if (data[pKey]) prevDaysData.push(data[pKey]);
+    }
+  }
+
+  html += renderDailyReport(dayData, day(), prevDaysData);
 
   html += '<div class="card">';
   if (newWords.length === 0) {
@@ -1413,13 +1453,28 @@ document.addEventListener('click', function(e) {
   if (action === 'copy-report') {
     var curDayData = data[activeDateKey()];
     if (!curDayData || typeof LOGIC === 'undefined' || !LOGIC.computeDayReport) return;
-    var r = LOGIC.computeDayReport(curDayData);
+    var prevD = [];
+    var actD = day();
+    for (var p = 1; p <= 3; p++) {
+      var tD = actD - p;
+      if (tD >= 1) {
+        var pK = dateKeyForDay(tD);
+        if (data[pK]) prevD.push(data[pK]);
+      }
+    }
+    var r = LOGIC.computeDayReport(curDayData, prevD);
     if (!r) return;
     var summary = 'RECALL Day ' + day() + ' Performance Report\n' +
       'Score: ' + (r.averageScore !== null ? r.averageScore + '/10' : 'N/A') + '\n' +
       'Fillers: ' + r.totalFillers + '\n' +
-      'Retries Rectified: ' + r.rectifiedCount + '/' + r.retriedCount + '\n\n' +
-      'STRENGTHS:\n' + (r.strengths.length ? r.strengths.map(function(s){ return '• ' + s.step.toUpperCase() + ': ' + s.text; }).join('\n') : 'None recorded') + '\n\n' +
+      'Same-Day Rectified: ' + r.rectifiedCount + '/' + r.retriedCount + '\n';
+    if (r.breakthroughs && r.breakthroughs.length > 0) {
+      summary += '\nCROSS-DAY BREAKTHROUGHS (RECTIFIED):\n' + r.breakthroughs.map(function(b){ return '🎉 ' + b.label + ' (conquered after Day ' + b.priorDays.join(', ') + ')'; }).join('\n') + '\n';
+    }
+    if (r.repeatedHabits && r.repeatedHabits.length > 0) {
+      summary += '\nREPEATED HABITS TO BREAK:\n' + r.repeatedHabits.map(function(h){ return '⚠️ ' + h.label + ' (repeated from Day ' + h.priorDays.join(', ') + ')'; }).join('\n') + '\n';
+    }
+    summary += '\nSTRENGTHS:\n' + (r.strengths.length ? r.strengths.map(function(s){ return '• ' + s.step.toUpperCase() + ': ' + s.text; }).join('\n') : 'None recorded') + '\n\n' +
       'MISTAKES & FIXES:\n' + (r.fixes.length ? r.fixes.map(function(f){ return '• ' + f.step.toUpperCase() + ': ' + f.fix + (f.betterLine ? '\n  Suggested: ' + f.betterLine : ''); }).join('\n') : 'None recorded');
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(summary).then(function() {

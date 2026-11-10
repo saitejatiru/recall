@@ -8,9 +8,14 @@
    - AI teach-back gap analyses and model explanations are stored in `vd.recall.teachback`.
    - Try-again attempts, improvement outcomes, and updated coach lines are stored in `sd.retry`.
 
-2. **Mistake Rectification Tracking**
-   - If the user uses "Try again with the fix", the report evaluates whether the retry improved (`retry.improved === true`).
-   - When rectified, a `✓ Mistake Rectified` badge is displayed with the improved phrasing and the updated coach remark.
+2. **Mistake Rectification & Cross-Day Habit Tracking**
+   - If the user uses "Try again with the fix", the report evaluates whether the retry improved (`retry.improved === true`) and displays a `✓ Mistake Rectified` badge.
+   - **Cross-Day Habit Tracking (`LOGIC.computeDayReport(dayData, prevDaysData)`):**
+     - Tracks AI diagnostic tags (e.g. `no-metric`, `no-structure`, `rambling`, `no-impact`, etc.) across multiple days.
+     - **Repeated Mistake Alert (`⚠️ Persistent Habit`):** Warns if an AI-flagged mistake from an earlier day recurred today (e.g., `Missing metrics or numbers was repeated today (also flagged on Day 1)`).
+     - **Cross-Day Breakthrough Banner (`🎉 Mistakes Rectified!`):** Celebrates when a mistake made across earlier days is cleanly avoided today (e.g., `You conquered Missing metrics or numbers today! (Flagged on Day 1, Day 2 — cleanly avoided today)`).
+     - Scorecard metrics include `Breakthroughs` count and `Repeated Mistakes` count.
+     - `copy-report` text export incorporates cross-day habit progress and alerts.
 
 3. **Visual Daily Performance Report Component**
    - Implemented `LOGIC.computeDayReport(dayData)` in `logic.js` (pure function, tested in Node).

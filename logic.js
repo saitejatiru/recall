@@ -379,7 +379,20 @@
   // ── Exports ───────────────────────────────────────────────────────────────
 
   // ── Performance report aggregation (Phase 5) ───────────────────────────
-  function computeDayReport(dayData) {
+  var TAG_LABELS = {
+    'no-metric': 'Missing metrics or numbers',
+    'no-structure': 'Unclear answer structure',
+    'rambling': 'Rambling / over time limit',
+    'no-impact': 'Unclear business impact / outcome',
+    'generic': 'Generic answer / lacks specific context',
+    'no-framework': 'No framework applied',
+    'jargon-misuse': 'Misused PM terminology',
+    'vague-action': 'Vague actions taken',
+    'missing-stakeholder': 'Missing stakeholder context',
+    'no-data-backing': 'Lacks data backing'
+  };
+
+  function computeDayReport(dayData, prevDaysData) {
     if (!dayData) return null;
     var steps = ['speak', 'case', 'interview'];
     var scores = [];
@@ -389,6 +402,7 @@
     var strengths = [];
     var fixes = [];
     var stepAnalyses = [];
+    var todayTags = {};
 
     steps.forEach(function(sKey) {
       var s = dayData[sKey];
@@ -399,6 +413,9 @@
       if (fb && typeof fb.score === 'number') scores.push(fb.score);
       if (fb && fb.landed) strengths.push({ step: sKey, text: fb.landed });
       if (fb && fb.fix) fixes.push({ step: sKey, fix: fb.fix, betterLine: fb.betterLine });
+      if (fb && Array.isArray(fb.tags)) {
+        fb.tags.forEach(function(t) { todayTags[t] = true; });
+      }
       if (ret) {
         retriedCount++;
         if (ret.improved) rectifiedCount++;
@@ -428,6 +445,47 @@
       ? Math.round((scores.reduce(function(a, b) { return a + b; }, 0) / scores.length) * 10) / 10
       : null;
 
+    // Cross-day habit & breakthrough tracking
+    var pastTagDays = {};
+    if (Array.isArray(prevDaysData)) {
+      prevDaysData.forEach(function(pd) {
+        if (!pd) return;
+        var pNum = pd.dayNumber;
+        steps.forEach(function(sKey) {
+          var s = pd[sKey];
+          var tags = (s && s.aiFeedback && s.aiFeedback.tags) || [];
+          tags.forEach(function(t) {
+            if (!pastTagDays[t]) pastTagDays[t] = [];
+            if (pastTagDays[t].indexOf(pNum) === -1) pastTagDays[t].push(pNum);
+          });
+        });
+      });
+    }
+
+    var repeatedHabits = [];
+    Object.keys(todayTags).forEach(function(t) {
+      if (pastTagDays[t] && pastTagDays[t].length > 0) {
+        repeatedHabits.push({
+          tag: t,
+          label: TAG_LABELS[t] || t,
+          priorDays: pastTagDays[t].slice().sort(function(a, b) { return a - b; })
+        });
+      }
+    });
+
+    var breakthroughs = [];
+    if (scores.length > 0) {
+      Object.keys(pastTagDays).forEach(function(t) {
+        if (!todayTags[t]) {
+          breakthroughs.push({
+            tag: t,
+            label: TAG_LABELS[t] || t,
+            priorDays: pastTagDays[t].slice().sort(function(a, b) { return a - b; })
+          });
+        }
+      });
+    }
+
     var vocab = dayData.vocab || {};
     var vocabItems = [];
     var sents = vocab.sentences || {};
@@ -456,7 +514,9 @@
       fixes: fixes,
       stepAnalyses: stepAnalyses,
       vocabItems: vocabItems,
-      teachback: teachback
+      teachback: teachback,
+      repeatedHabits: repeatedHabits,
+      breakthroughs: breakthroughs
     };
   }
 
@@ -482,5 +542,6 @@
   exports.validateGeneratedDay = validateGeneratedDay;
   exports.remixDay = remixDay;
   exports.computeDayReport = computeDayReport;
+  exports.TAG_LABELS = TAG_LABELS;
 
 })(typeof module !== 'undefined' ? module.exports : (window.LOGIC = window.LOGIC || {}));

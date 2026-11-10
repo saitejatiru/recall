@@ -432,4 +432,20 @@ assert.equal(rpt.vocabItems[1].aiVerdict, 'review', 'aiVerdict mapped');
 assert.ok(rpt.teachback && rpt.teachback.gaps.length === 1, 'teachback gaps mapped');
 assert.ok(rpt.stepAnalyses[0].retry && rpt.stepAnalyses[0].retry.improved, 'step retry improved true');
 
+// Cross-day habit tracking & repeated mistakes test
+var pastDays = [
+  { dayNumber: 2, speak: { aiFeedback: { score: 6, tags: ['no-metric', 'generic'] } } },
+  { dayNumber: 1, speak: { aiFeedback: { score: 5, tags: ['no-metric'] } } }
+];
+// Case A: Today (sampleDay) has 'generic' and 'no-impact', so 'generic' is repeated from Day 2!
+var rptWithHistory = L.computeDayReport(sampleDay, pastDays);
+assert.equal(rptWithHistory.repeatedHabits.length, 1, '1 repeated habit detected');
+assert.equal(rptWithHistory.repeatedHabits[0].tag, 'generic', 'generic is repeated habit');
+assert.deepEqual(rptWithHistory.repeatedHabits[0].priorDays, [2], 'repeated from day 2');
+
+// Breakthrough: Day 1 and Day 2 had 'no-metric', but today has NO 'no-metric' -> Breakthrough!
+assert.equal(rptWithHistory.breakthroughs.length, 1, '1 breakthrough detected');
+assert.equal(rptWithHistory.breakthroughs[0].tag, 'no-metric', 'no-metric is breakthrough');
+assert.deepEqual(rptWithHistory.breakthroughs[0].priorDays, [1, 2], 'conquered after days 1 & 2');
+
 console.log('logic self-check: all passed');
