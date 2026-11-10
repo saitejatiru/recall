@@ -66,7 +66,7 @@ Plans:
 
 **Goal**: Every practice answer gets live AI feedback scored against a fixed rubric, with weak-spot tags tracked and surfaced in the daily flow
 **Depends on**: Phase 2
-**Requirements**: COACH-01, COACH-02, COACH-03, COACH-04, COACH-05, COACH-07, WEAK-01, WEAK-02, WEAK-03, LEARN-01, LEARN-02, LEARN-03, LEARN-04, LEARN-05, LEARN-06
+**Requirements**: COACH-01, COACH-02, COACH-03, COACH-04, COACH-05, COACH-07, WEAK-01, WEAK-02, WEAK-03, LEARN-01, LEARN-02, LEARN-03, LEARN-04, LEARN-05, LEARN-06, LEARN-07, LEARN-08, LEARN-09, LEARN-10
 **Success Criteria** (what must be TRUE):
 
   1. After each answer, user sees a score (1-10), what landed, one specific fix, and a rewritten line using their actual resume projects — all under 80 words, with no praise opener
@@ -75,6 +75,7 @@ Plans:
   4. The case and unexpected interview question that appear each day target the user's top weak spot
   5. Each answer step names its framework (STAR / CIRCLES / issue tree / RICE / answer-first), shows today's 5 words as chips that light up when used, and offers "Try again with the fix" plus a resume-based model answer
   6. Vocab sentences get an AI check with a corrected sentence; the next day's recall quizzes yesterday's fix and words
+  7. Each day teaches before it tests: a micro-lesson (product concept + framework with a worked example), a guided first answer, a teach-back, Socratic follow-ups; review days mix frameworks and end with a reflection
 
 **Plans**: TBD
 **UI hint**: yes

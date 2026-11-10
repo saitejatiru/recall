@@ -48,6 +48,10 @@
 - [ ] **LEARN-04**: After feedback the user can open a short model answer (≤120 words) in the named framework, using only facts from their resume
 - [ ] **LEARN-05**: The next day's recall step quizzes yesterday's one fix and words before showing them (retrieval practice)
 - [ ] **LEARN-06**: The coach checks each vocab sentence (replacing the local check) and gives a corrected sentence when usage is wrong
+- [ ] **LEARN-07**: Each day opens with a short micro-lesson (about 3 min, "I do"): one product concept tied to the day's word theme (e.g. North Star metric, AARRR/HEART, JTBD, RICE/Kano, moats) plus one communication framework, taught with a worked example; then the first answer is guided step-by-step through the framework ("we do") before the free answers ("you do") — guidance fades over the 30 days (scaffolding)
+- [ ] **LEARN-08**: Teach-back (Feynman): once a day the user explains the day's concept to a "new teammate" in plain words; the coach points out the gap or jargon to fix
+- [ ] **LEARN-09**: Socratic follow-up: when an answer skips a framework step, the coach asks one probing interviewer-style question instead of only stating the fix
+- [ ] **LEARN-10**: Review days (7, 14, 21, 28) mix questions across all frameworks learned so far (interleaving) and end with a short reflection: what improved, what to drill next (metacognition)
 
 ### Resume
 
@@ -136,6 +140,10 @@ Deferred. Tracked but not in the current roadmap.
 | LEARN-04 | Phase 3 | Pending |
 | LEARN-05 | Phase 3 | Pending |
 | LEARN-06 | Phase 3 | Pending |
+| LEARN-07 | Phase 3 | Pending |
+| LEARN-08 | Phase 3 | Pending |
+| LEARN-09 | Phase 3 | Pending |
+| LEARN-10 | Phase 3 | Pending |
 | PROXY-01 | Phase 1 | Complete |
 | PROXY-02 | Phase 1 | Complete |
 | PROXY-03 | Phase 1 | Complete |
