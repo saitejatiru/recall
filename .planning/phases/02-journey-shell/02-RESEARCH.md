@@ -228,6 +228,8 @@ function migrate(data) {
 
 **Pitfall:** The existing `day` field stores a programme day integer (1–30), set by clicking days in the old dashboard. The journey engine will trust this for `today()`'s content selection. If `data.day` is 1 (default), the user starts at day 1 content — correct. After completing a day, increment `data.day` only if `data.day === currentCalendarDayNumber` (i.e., we don't auto-advance programme day based on calendar; the user explicitly advances it, as in the existing pattern where clicking day buttons sets `data.day`). **Resolution (see Open Questions Q3):** phase 2 should set `data.day` automatically when a session is completed, incrementing by 1 (up to 30). This decouples programme day from calendar — the user can do day 1 on Nov 9 and day 2 on Nov 11.
 
+> **SUPERSEDED by the plans (2026-11-10):** the programme day advances at most once per CALENDAR day — never on session completion. `goToStep` only marks the day complete; the startup block advances `data.day` by 1 on the next calendar day's first load, gated by `LOGIC.shouldAdvanceProgrammeDay` (see 02-02-PLAN.md). Day 31+ loops on day-30 practice.
+
 ### Backup (JRNY-07)
 
 **Export:** `JSON.stringify({ recallData: data, recallResume: localStorage.getItem('recallResume') || '' })`. Triggers `<a>` download.
@@ -764,6 +766,8 @@ The feedback slot always renders the 6-item rubric (UI-SPEC component #7). The "
 **What goes wrong:** `data.day` was previously user-controlled (clicking day buttons). Auto-advancing after session completion is a behavior change that could confuse a returning user.
 **Prevention:** Remove the old day-selector UI from the journey view. Auto-advance is correct for the linear journey flow. Preserve the old `data.day` value as the starting day on first load. Document in PLAN.md.
 
+> **SUPERSEDED by the plans (2026-11-10):** the programme day advances at most once per CALENDAR day — never on session completion. `goToStep` only marks the day complete; the startup block advances `data.day` by 1 on the next calendar day's first load, gated by `LOGIC.shouldAdvanceProgrammeDay` (see 02-02-PLAN.md). Day 31+ loops on day-30 practice.
+
 ### Pitfall 7: "Done — move on" disabled on empty rubric
 **What goes wrong:** A developer adds a validation check ("user must tick at least one box"). COACH-06 explicitly prohibits this — AI must never block the day.
 **Prevention:** "Done — move on" is never disabled. No validation on rubric state. This is a hard requirement.
@@ -855,6 +859,8 @@ The feedback slot always renders the 6-item rubric (UI-SPEC component #7). The "
 
 1. **Programme day vs. calendar day — who advances `data.day`?** [RESOLVED]
    - **Resolution:** Phase 2 auto-advances `data.day` by 1 when a session is marked complete (reaching step 5), capped at 30. This decouples programme content from the calendar date — the user advances through the 30-day curriculum at their own pace. The old day-selector UI (clickable day buttons on the dashboard) is removed in Phase 2. If `data.day` is already 2 when Phase 2 is deployed (user had manually advanced it in Phase 1), it starts from day 2 content. No reset.
+
+   > **SUPERSEDED by the plans (2026-11-10):** the programme day advances at most once per CALENDAR day — never on session completion. `goToStep` only marks the day complete; the startup block advances `data.day` by 1 on the next calendar day's first load, gated by `LOGIC.shouldAdvanceProgrammeDay` (see 02-02-PLAN.md). Day 31+ loops on day-30 practice.
 
 2. **What happens if the user does two sessions in one calendar day?** [RESOLVED]
    - **Resolution:** Each session is keyed by `today()` (calendar date string). If the user finishes a session and starts another on the same day, `d-YYYY-MM-DD` already has `step: 5` and `complete: true`. The app shows the Day Summary screen (already complete state). The user sees "Done for today!" and can export backup. No duplicate session allowed per calendar day. Programme day counter only advances once per completion (the check: only advance if `dayData.complete` was false before this session).
