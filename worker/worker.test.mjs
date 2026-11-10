@@ -142,4 +142,10 @@ assert.equal(r.json.results.length, 3);
 const kv = { v: '2', get: async () => kv.v, put: async (_k, v) => { kv.v = v; } };
 assert.equal((await call({ task: 'ping', passcode: 'pw' }, { ...base, KV: kv, DAILY_CAP: '2' })).status, 429);
 
+// 6. coach: answer mode — score and tags validated
+fakeNim(() => reply(200, '{"score":7,"landed":"clear structure","fix":"Lead with metric","betterLine":"In my project, conversion rose 20%.","tags":["no-metric"],"wordsUsed":["OKR"],"missedWord":null,"frameworkHits":["Situation"],"socratiQ":null}'));
+r = await call({ task: 'coach', passcode: 'pw', mode: 'answer', question: 'Tell me about a metric', framework: 'STAR', answer: 'I tracked DAU', todayWords: ['OKR'], learnedWords: [], resumeExcerpt: 'PM at Nxtwave' });
+assert.equal(r.json.score, 7, 'coach/answer: score field');
+assert.ok(r.json.tags.includes('no-metric'), 'coach/answer: tag present');
+
 console.log('worker self-check: all passed');
