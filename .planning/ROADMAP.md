@@ -7,7 +7,7 @@ RECALL transforms an existing multi-tab PM practice tool into a guided daily jou
 ## Phases
 
 - [x] **Phase 1: Proxy & Hosting** - Cloudflare Worker proxy with key rotation, auth, and GitHub Pages deploy; no AI call is possible without this (completed 2026-11-09)
-- [ ] **Phase 2: Journey Shell** - Complete 5-step daily journey (vocab, recall, speaking, case, interview), resume upload, Leitner review, and storage migration — all offline-testable
+- [x] **Phase 2: Journey Shell** - Complete 5-step daily journey (vocab, recall, speaking, case, interview), resume upload, Leitner review, and storage migration — all offline-testable (completed 2026-11-10)
 - [ ] **Phase 3: AI Coach + Weak Spots** - Live NIM feedback on every step with rubric-anchored scoring, weak-spot tagging, and adaptive question selection
 - [ ] **Phase 4: Endless Mode** - AI-generated fresh daily content after day 30, using the user's weak-spot history and resume
 
@@ -66,13 +66,15 @@ Plans:
 
 **Goal**: Every practice answer gets live AI feedback scored against a fixed rubric, with weak-spot tags tracked and surfaced in the daily flow
 **Depends on**: Phase 2
-**Requirements**: COACH-01, COACH-02, COACH-03, COACH-04, COACH-05, COACH-07, WEAK-01, WEAK-02, WEAK-03
+**Requirements**: COACH-01, COACH-02, COACH-03, COACH-04, COACH-05, COACH-07, WEAK-01, WEAK-02, WEAK-03, LEARN-01, LEARN-02, LEARN-03, LEARN-04, LEARN-05, LEARN-06
 **Success Criteria** (what must be TRUE):
 
   1. After each answer, user sees a score (1-10), what landed, one specific fix, and a rewritten line using their actual resume projects — all under 80 words, with no praise opener
   2. The coach stays on PM topics and politely refuses off-topic requests; nothing the user writes in an answer or resume changes the coach's rules or rubric
   3. The day summary and journey intro show the user's top weak-spot tags from the past 7 days alongside today's focus
   4. The case and unexpected interview question that appear each day target the user's top weak spot
+  5. Each answer step names its framework (STAR / CIRCLES / issue tree / RICE / answer-first), shows today's 5 words as chips that light up when used, and offers "Try again with the fix" plus a resume-based model answer
+  6. Vocab sentences get an AI check with a corrected sentence; the next day's recall quizzes yesterday's fix and words
 
 **Plans**: TBD
 **UI hint**: yes
@@ -95,6 +97,6 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Proxy & Hosting | 3/3 | Complete    | 2026-11-09 |
-| 2. Journey Shell | 3/3 | In Progress|  |
+| 2. Journey Shell | 3/3 | Complete    | 2026-11-10 |
 | 3. AI Coach + Weak Spots | 0/? | Not started | - |
 | 4. Endless Mode | 0/? | Not started | - |

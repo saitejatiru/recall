@@ -24,10 +24,10 @@
 ### Practice
 
 - [x] **PRAC-01**: Recall step: user writes from memory what they learned yesterday (words and the main fix), then sees what they missed
-- [ ] **PRAC-02**: Speaking step: 30 s think + 90 s timed spoken answer to the day's prompt; the transcript appears after speaking and can be edited before submitting
-- [ ] **PRAC-03**: If speech recognition is not available, the user can type every answer instead (one-line notice, no error)
-- [ ] **PRAC-04**: Case step: one product case per day that the user answers (spoken or typed)
-- [ ] **PRAC-05**: Unexpected question: the question is hidden until the user starts; 30 s think, 90 s answer; the coach then asks one follow-up question and the user answers it
+- [x] **PRAC-02**: Speaking step: 30 s think + 90 s timed spoken answer to the day's prompt; the transcript appears after speaking and can be edited before submitting
+- [x] **PRAC-03**: If speech recognition is not available, the user can type every answer instead (one-line notice, no error)
+- [x] **PRAC-04**: Case step: one product case per day that the user answers (spoken or typed)
+- [x] **PRAC-05**: Unexpected question: the question is hidden until the user starts; 30 s think, 90 s answer; the coach then asks one follow-up question and the user answers it
 - [x] **PRAC-06**: For spoken answers the user sees a filler-word count (um, uh, like, you know…) worked out without an AI call
 
 ### AI Coach
@@ -40,11 +40,20 @@
 - [x] **COACH-06**: If the AI is unavailable or slow, the user can self-check with a checklist and continue; the AI never blocks the day
 - [ ] **COACH-07**: Text inside an answer or resume cannot change the coach's rules (prompt-injection guard)
 
+### Learning Method (added 2026-11-10 from user testing)
+
+- [ ] **LEARN-01**: Every speak/case/interview question names the framework to use with a 3-line cheat card — STAR (behavioural), CIRCLES (product design/improvement), issue tree + 5 Whys (metric drop/diagnosis), RICE (prioritisation), Pyramid/PREP answer-first (any answer) — and the coach scores structure against that framework
+- [ ] **LEARN-02**: Today's 5 words show as "use these words" chips in the speak, case and interview steps; a chip lights up when the word is used, and the coach credits correct use and flags misuse
+- [ ] **LEARN-03**: Deliberate practice loop — after feedback the user can "Try again with the fix"; the coach scores the second attempt and shows what improved
+- [ ] **LEARN-04**: After feedback the user can open a short model answer (≤120 words) in the named framework, using only facts from their resume
+- [ ] **LEARN-05**: The next day's recall step quizzes yesterday's one fix and words before showing them (retrieval practice)
+- [ ] **LEARN-06**: The coach checks each vocab sentence (replacing the local check) and gives a corrected sentence when usage is wrong
+
 ### Resume
 
-- [ ] **RES-01**: User uploads a PDF resume; text is extracted in the browser, shown for editing, and saved on the device only
-- [ ] **RES-02**: If the PDF has no readable text (scanned), the user is told and can paste the text instead
-- [ ] **RES-03**: User can replace or delete the saved resume
+- [x] **RES-01**: User uploads a PDF resume; text is extracted in the browser, shown for editing, and saved on the device only
+- [x] **RES-02**: If the PDF has no readable text (scanned), the user is told and can paste the text instead
+- [x] **RES-03**: User can replace or delete the saved resume
 
 ### Weak Spots
 
@@ -103,10 +112,10 @@ Deferred. Tracked but not in the current roadmap.
 | VOC-02 | Phase 2 | Complete |
 | VOC-03 | Phase 2 | Complete |
 | PRAC-01 | Phase 2 | Complete |
-| PRAC-02 | Phase 2 | Pending |
-| PRAC-03 | Phase 2 | Pending |
-| PRAC-04 | Phase 2 | Pending |
-| PRAC-05 | Phase 2 | Pending |
+| PRAC-02 | Phase 2 | Complete |
+| PRAC-03 | Phase 2 | Complete |
+| PRAC-04 | Phase 2 | Complete |
+| PRAC-05 | Phase 2 | Complete |
 | PRAC-06 | Phase 2 | Complete |
 | COACH-01 | Phase 3 | Pending |
 | COACH-02 | Phase 3 | Pending |
@@ -115,12 +124,18 @@ Deferred. Tracked but not in the current roadmap.
 | COACH-05 | Phase 3 | Pending |
 | COACH-06 | Phase 2 | Complete |
 | COACH-07 | Phase 3 | Pending |
-| RES-01 | Phase 2 | Pending |
-| RES-02 | Phase 2 | Pending |
-| RES-03 | Phase 2 | Pending |
+| RES-01 | Phase 2 | Complete |
+| RES-02 | Phase 2 | Complete |
+| RES-03 | Phase 2 | Complete |
 | WEAK-01 | Phase 3 | Pending |
 | WEAK-02 | Phase 3 | Pending |
 | WEAK-03 | Phase 3 | Pending |
+| LEARN-01 | Phase 3 | Pending |
+| LEARN-02 | Phase 3 | Pending |
+| LEARN-03 | Phase 3 | Pending |
+| LEARN-04 | Phase 3 | Pending |
+| LEARN-05 | Phase 3 | Pending |
+| LEARN-06 | Phase 3 | Pending |
 | PROXY-01 | Phase 1 | Complete |
 | PROXY-02 | Phase 1 | Complete |
 | PROXY-03 | Phase 1 | Complete |
