@@ -105,7 +105,10 @@ Plans:
   1. On day 31+, the user gets a new day with 5 fresh PM words, a new prompt, case, and unexpected question generated from their weak-spot history and resume — no word or question already seen repeats
   2. If AI generation fails, the day is built from remixed built-in content and the user can still complete a full practice session without interruption
 
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 04-01-PLAN.md — endless days 31+: logic (validate/remix), Worker generate task, app accessors + Start-time generation
 **UI hint**: yes
 
 ## Progress
@@ -115,4 +118,4 @@ Plans:
 | 1. Proxy & Hosting | 3/3 | Complete    | 2026-11-09 |
 | 2. Journey Shell | 3/3 | Complete    | 2026-11-10 |
 | 3. AI Coach + Weak Spots | 4/4 | Complete    | 2026-11-10 |
-| 4. Endless Mode | 0/? | Not started | - |
+| 4. Endless Mode | 0/1 | Planned | - |
