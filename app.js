@@ -744,6 +744,32 @@ function renderRecall(container) {
       if (term) html += '<p><strong>' + esc(term.term) + ':</strong> ' + esc(term.meaning) + '</p>';
     });
     html += '</div>';
+
+    // Fix-recall quiz (LEARN-05): show if yesterday had an AI fix stored
+    var yesterdayFix = null;
+    if (yd.speak && yd.speak.aiFeedback && yd.speak.aiFeedback.fix) yesterdayFix = yd.speak.aiFeedback.fix;
+    else if (yd.case && yd.case.aiFeedback && yd.case.aiFeedback.fix) yesterdayFix = yd.case.aiFeedback.fix;
+    else if (yd.interview && yd.interview.aiFeedback && yd.interview.aiFeedback.fix) yesterdayFix = yd.interview.aiFeedback.fix;
+    if (yesterdayFix) {
+      html += '<div style="margin-top:16px;border-top:1px solid var(--line);padding-top:12px">';
+      html += '<h3>What was the main fix from yesterday\'s answer?</h3>';
+      html += '<textarea id="fixRecallText" maxlength="400" placeholder="What do you remember?" style="margin-top:4px"></textarea>';
+      html += '<button class="btn" data-action="recall-reveal-fix" style="margin-top:8px">Reveal fix</button>';
+      html += '<div id="fixRevealPanel" class="hidden" style="margin-top:8px;border-left:4px solid var(--accent);background:var(--panel2);padding:12px 16px;border-radius:0 8px 8px 0">' + esc(yesterdayFix) + '</div>';
+      html += '</div>';
+    }
+
+    // Teach-back section (LEARN-08): show if yesterday stored lesson.concept
+    if (yd.lesson && yd.lesson.concept) {
+      html += '<div style="margin-top:16px;border-top:1px solid var(--line);padding-top:12px">';
+      html += '<h3>Teach it back</h3>';
+      html += '<p>Explain \'' + esc(yd.lesson.concept) + '\' to a new teammate in 1-2 sentences.</p>';
+      html += '<textarea id="teachbackText" maxlength="200" placeholder="Explain in 1-2 sentences…" style="margin-top:4px"></textarea>';
+      html += '<button class="btn" data-action="teachback-submit" disabled style="margin-top:8px">Submit</button>';
+      html += '<div id="teachbackResult"></div>';
+      html += '</div>';
+    }
+
     html += '<button class="btn primary" data-action="step-next" style="width:100%;margin-top:12px">Save &amp; continue →</button>';
     html += '</div>';
   }
@@ -901,7 +927,13 @@ function goToStep(n) {
   var vd = data['d-' + todayStr];
   if (!vd) vd = data['d-' + todayStr] = { step: 0, complete: false };
   vd.step = n;
-  if (n > 5) vd.complete = true;
+  if (n > 5) {
+    vd.complete = true;
+    // Store lesson concept for tomorrow's teach-back (LEARN-08)
+    if (typeof LESSONS !== 'undefined') {
+      vd.lesson = { concept: (LESSONS[Math.min(day()-1, LESSONS.length-1)] || {}).concept || '' };
+    }
+  }
   save();
   renderApp();
   window.scrollTo(0, 0);
@@ -990,6 +1022,48 @@ document.addEventListener('click', function(e) {
     var rm = document.getElementById('recallMeanings');
     if (rm) rm.classList.remove('hidden');
     el.textContent = 'Meanings shown';
+    return;
+  }
+
+  if (action === 'recall-reveal-fix') {
+    var fpanel = document.getElementById('fixRevealPanel');
+    if (fpanel) fpanel.classList.remove('hidden');
+    el.textContent = 'Fix revealed';
+    el.disabled = true;
+    return;
+  }
+
+  if (action === 'teachback-submit') {
+    var tbEl = document.getElementById('teachbackText');
+    if (!tbEl || !tbEl.value.trim()) return;
+    el.disabled = true; el.textContent = 'Checking…';
+    var ydTb = data['d-' + LOGIC.addDays(todayStr, -1)];
+    var conceptTb = (ydTb && ydTb.lesson && ydTb.lesson.concept) || '';
+    var tbPayload = LOGIC.buildCoachPayload('teachback', { concept: conceptTb, answer: tbEl.value.trim() });
+    workerCall('coach', tbPayload).then(function(res) {
+      var tbResult = document.getElementById('teachbackResult');
+      if (tbResult) {
+        var tbHtml = '';
+        if (res && Array.isArray(res.gaps) && typeof res.betterExplanation === 'string') {
+          tbHtml = '<div style="margin-top:8px">';
+          if (res.gaps.length > 0) {
+            tbHtml += '<p><strong>Gaps found:</strong></p><ul>';
+            res.gaps.forEach(function(g) { tbHtml += '<li>' + esc(g) + '</li>'; });
+            tbHtml += '</ul>';
+          }
+          tbHtml += '<div style="border-left:4px solid var(--accent);background:var(--panel2);padding:12px 16px;border-radius:0 8px 8px 0;margin-top:8px">' + esc(res.betterExplanation) + '</div>';
+          tbHtml += '</div>';
+        } else {
+          tbHtml = '<p class="small muted">AI unavailable — good effort.</p>';
+        }
+        tbResult.innerHTML = tbHtml;
+      }
+      el.disabled = false; el.textContent = 'Submit';
+    }).catch(function() {
+      var tbResult2 = document.getElementById('teachbackResult');
+      if (tbResult2) tbResult2.innerHTML = '<p class="small muted">AI unavailable — good effort.</p>';
+      el.disabled = false; el.textContent = 'Submit';
+    });
     return;
   }
 
@@ -1403,6 +1477,13 @@ document.addEventListener('input', function(e) {
   if (id === 'retryTranscript') {
     var rsBtn = document.querySelector('[data-action="retry-submit"]');
     if (rsBtn) rsBtn.disabled = !val.trim();
+    return;
+  }
+
+  // Teach-back textarea → enable teachback-submit button
+  if (id === 'teachbackText') {
+    var tbBtn = document.querySelector('[data-action="teachback-submit"]');
+    if (tbBtn) tbBtn.disabled = !val.trim();
     return;
   }
 
