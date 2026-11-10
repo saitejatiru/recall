@@ -328,4 +328,40 @@ assert.equal(chips2.has('jtbd'), false, 'detectWordChips: jtbd not in second tex
 var chipsEmpty = LOGIC.detectWordChips('', todayWords);
 assert.equal(chipsEmpty.size, 0, 'detectWordChips: empty text → empty set');
 
+// ── Endless mode ──
+var L = LOGIC;
+var mkW = function(d, i) { return { id: 'w' + d + i, term: 'Word ' + d + '-' + i, meaning: 'm', everyday: 'e', interview: 'i' }; };
+var c = {
+  VOCAB: [0, 1].map(function(d) { return [0,1,2,3,4].map(function(i) { return mkW(d, i); }); }),
+  QUESTIONS: [{ text: 'Q1?', framework: 'STAR' }, { text: 'Q2?', framework: 'PREP' }],
+  CASES: [{ title: 'C1', scenario: 's', reasoning: 'r', framework: 'RICE', targetsTags: ['no-metric'] },
+          { title: 'C2', scenario: 's', reasoning: 'r', framework: 'issue-tree', targetsTags: ['rambling'] }],
+  INTERVIEW: [{ category: 'behavioural', question: 'I1?', framework: 'STAR', targetsTags: ['no-impact'] },
+              { category: 'product', question: 'I2?', framework: 'CIRCLES', targetsTags: ['rambling'] }],
+  LESSONS: [{ concept: 'L1', detail: 'd', workedExample: 'w', framework: 'STAR', guidedStep: '', isReview: false },
+            { concept: 'R', isReview: true, frameworks: [] }]
+};
+assert.equal(L.remixDay(32, c, {}, ['rambling']).case.title, 'C2', 'remix case follows weak spot');
+assert.equal(L.isReviewDayNum(35, []), true); assert.equal(L.isReviewDayNum(36, []), false);
+var seenX = { terms: ['North Star metric'], questions: ['Old question?'] };
+var good = { words: [0,1,2,3,4].map(function(i){ return { term: 'Term ' + i, meaning: 'm', everyday: 'e', interview: 'i' }; }),
+  question: { text: 'New question?', framework: 'STAR' },
+  case: { title: 'New case', scenario: 's', reasoning: 'r', framework: 'RICE', targetsTags: ['no-metric'] },
+  interview: { category: 'behavioural', question: 'New interview?', framework: 'PREP', targetsTags: ['rambling'] },
+  lesson: { concept: 'c', detail: 'd', workedExample: 'w', framework: 'CIRCLES' } };
+var v = L.validateGeneratedDay(good, seenX, 31);
+assert.ok(v && v.words[0].id === 'g31-0' && v.source === 'ai', 'valid pack accepted with ids');
+assert.equal(L.validateGeneratedDay(Object.assign({}, good, { words: good.words.slice(0, 4) }), seenX, 31), null, '4 words rejected');
+var dup = JSON.parse(JSON.stringify(good)); dup.words[2].term = 'north-star METRIC'; assert.equal(L.validateGeneratedDay(dup, seenX, 31), null, 'seen term rejected (normalised)');
+var badFw = JSON.parse(JSON.stringify(good)); badFw.case.framework = 'SWOT'; assert.equal(L.validateGeneratedDay(badFw, seenX, 31), null, 'unknown framework rejected');
+assert.equal(L.validateGeneratedDay({ error: 'ai_error' }, seenX, 31), null, 'worker error body rejected');
+var rm1 = L.remixDay(31, c, {}, []), rm2 = L.remixDay(31, c, {}, []);
+assert.equal(rm1.words.length, 5); assert.deepEqual(rm1, rm2, 'remix is deterministic');
+assert.ok(rm1.question.text && rm1.case.title && rm1.interview.question && rm1.lesson.concept, 'remix pack complete');
+var st = {}; c.VOCAB[1].forEach(function(w, i) { st[w.id] = { box: i === 3 ? 1 : 3, nextReview: '2026-12-01' }; });
+c.VOCAB[0].forEach(function(w) { st[w.id] = { box: 4, nextReview: '2026-12-01' }; });
+assert.equal(L.remixDay(31, c, st, []).words[0].id, 'w13', 'remix picks weakest learned word first');
+var seenAll = L.collectSeen(c, { '31': v });
+assert.ok(seenAll.terms.indexOf('Term 0') >= 0 && seenAll.questions.indexOf('New case') >= 0, 'collectSeen includes packs');
+
 console.log('logic self-check: all passed');

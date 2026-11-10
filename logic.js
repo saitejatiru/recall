@@ -292,6 +292,90 @@
     return true;
   }
 
+  // ── Endless mode (END-01 / END-02) ────────────────────────────────────────
+  var FRAMEWORKS = ['STAR', 'CIRCLES', 'issue-tree', 'RICE', 'PREP'];
+  var COACH_TAGS = ['no-metric','no-structure','rambling','no-impact','generic',
+    'no-framework','jargon-misuse','vague-action','missing-stakeholder','no-data-backing'];
+  function normText(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); }
+  function okStr(v, max) { return typeof v === 'string' && v.trim().length > 0 && v.length <= max; }
+  function okFw(f) { return FRAMEWORKS.indexOf(f) >= 0; }
+  function okTags(t) { return Array.isArray(t) && t.length > 0 && t.every(function(x) { return COACH_TAGS.indexOf(x) >= 0; }); }
+
+  // Review days: built-in LESSONS flags for 1-30; every 7th day after that.
+  function isReviewDayNum(n, lessons) {
+    if (n <= 30) { var l = lessons && lessons[n - 1]; return !!(l && l.isReview); }
+    return n % 7 === 0;
+  }
+
+  // Every term / question the learner has already seen (all built-in + all stored packs).
+  // c = {VOCAB, QUESTIONS, CASES, INTERVIEW}
+  function collectSeen(c, endless) {
+    var terms = [], questions = [];
+    c.VOCAB.forEach(function(d) { d.forEach(function(w) { terms.push(w.term); }); });
+    c.QUESTIONS.forEach(function(q) { questions.push(q.text); });
+    c.CASES.forEach(function(x) { questions.push(x.title); });
+    c.INTERVIEW.forEach(function(x) { questions.push(x.question); });
+    Object.keys(endless || {}).forEach(function(k) {
+      var p = endless[k];
+      (p.words || []).forEach(function(w) { terms.push(w.term); });
+      if (p.question) questions.push(p.question.text);
+      if (p.case) questions.push(p.case.title);
+      if (p.interview) questions.push(p.interview.question);
+    });
+    return { terms: terms, questions: questions };
+  }
+
+  // Validates an AI reply and returns a clean pack (whitelisted fields only), or null.
+  // ponytail: one bad field rejects the whole pack → caller remixes; partial repair not worth it.
+  function validateGeneratedDay(p, seen, dayNum) {
+    if (!p || !Array.isArray(p.words) || p.words.length !== 5) return null;
+    var seenT = new Set(seen.terms.map(normText)), seenQ = new Set(seen.questions.map(normText));
+    var words = [];
+    for (var i = 0; i < 5; i++) {
+      var w = p.words[i];
+      if (!w || !okStr(w.term, 60) || !okStr(w.meaning, 220) || !okStr(w.everyday, 320) || !okStr(w.interview, 320)) return null;
+      if (seenT.has(normText(w.term))) return null;
+      seenT.add(normText(w.term));
+      words.push({ id: 'g' + dayNum + '-' + i, term: w.term.trim(), meaning: w.meaning, everyday: w.everyday, interview: w.interview });
+    }
+    var q = p.question, c = p.case, iv = p.interview, l = p.lesson;
+    if (!q || !okStr(q.text, 300) || !okFw(q.framework) || seenQ.has(normText(q.text))) return null;
+    if (!c || !okStr(c.title, 100) || !okStr(c.scenario, 700) || !okStr(c.reasoning, 500) || !okFw(c.framework) || !okTags(c.targetsTags) || seenQ.has(normText(c.title))) return null;
+    if (!iv || !okStr(iv.category, 40) || !okStr(iv.question, 300) || !okFw(iv.framework) || !okTags(iv.targetsTags) || seenQ.has(normText(iv.question))) return null;
+    if (!l || !okStr(l.concept, 100) || !okStr(l.detail, 700) || !okStr(l.workedExample, 700) || !okFw(l.framework)) return null;
+    return {
+      source: 'ai', words: words,
+      question: { text: q.text, framework: q.framework },
+      case: { title: c.title, scenario: c.scenario, reasoning: c.reasoning, framework: c.framework, targetsTags: c.targetsTags },
+      interview: { category: iv.category, question: iv.question, framework: iv.framework, targetsTags: iv.targetsTags },
+      lesson: { concept: l.concept, detail: l.detail, workedExample: l.workedExample, framework: l.framework, guidedStep: '', isReview: false }
+    };
+  }
+
+  // Offline / failure fallback. Deterministic from dayNum. c = {VOCAB, QUESTIONS, CASES, INTERVIEW, LESSONS}
+  function remixDay(dayNum, c, vocabState, topTags) {
+    var pickFrom = function(arr, k) { return arr[(dayNum * k) % arr.length]; };
+    var byWeak = function(items, k) {
+      var hit = items.filter(function(x) { return (x.targetsTags || []).some(function(t) { return topTags.indexOf(t) >= 0; }); });
+      return pickFrom(hit.length ? hit : items, k);
+    };
+    var all = [];
+    c.VOCAB.forEach(function(d) { d.forEach(function(w) { all.push(w); }); });
+    var st = vocabState || {};
+    var known = all.filter(function(w) { return st[w.id]; }).sort(function(a, b) {
+      return (st[a.id].box - st[b.id].box) || String(st[a.id].nextReview).localeCompare(String(st[b.id].nextReview));
+    });
+    var words = (known.length >= 5 ? known : all.filter(function(_, i) { return (i - dayNum * 5 % all.length + all.length) % all.length < 5; })).slice(0, 5);
+    var lessons = c.LESSONS.filter(function(l) { return !l.isReview; });
+    return {
+      source: 'remix', words: words,
+      question: pickFrom(c.QUESTIONS, 7),
+      case: byWeak(c.CASES, 3),
+      interview: byWeak(c.INTERVIEW, 5),
+      lesson: pickFrom(lessons, 11)
+    };
+  }
+
   // ── Exports ───────────────────────────────────────────────────────────────
 
   exports.today = today;
@@ -311,5 +395,9 @@
   exports.computeTopWeakSpots = computeTopWeakSpots;
   exports.selectByWeakSpot = selectByWeakSpot;
   exports.detectWordChips = detectWordChips;
+  exports.isReviewDayNum = isReviewDayNum;
+  exports.collectSeen = collectSeen;
+  exports.validateGeneratedDay = validateGeneratedDay;
+  exports.remixDay = remixDay;
 
 })(typeof module !== 'undefined' ? module.exports : (window.LOGIC = window.LOGIC || {}));
