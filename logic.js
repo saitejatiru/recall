@@ -260,6 +260,18 @@
     return items[0];
   }
 
+  function selectByWeakSpotNoRepeat(items, topTags, lastIdx) {
+    if (!items || items.length === 0) return null;
+    var topTagsSet = new Set(topTags);
+    for (var i = 0; i < items.length; i++) {
+      if (i === lastIdx) continue;
+      var tags = items[i].targetsTags || [];
+      if (tags.some(function(t) { return topTagsSet.has(t); })) return items[i];
+    }
+    var nextIdx = lastIdx >= 0 ? (lastIdx + 1) % items.length : 0;
+    return items[nextIdx];
+  }
+
   // ── Word chip detection ───────────────────────────────────────────────────
   // Reuses same root-strip logic as checkVocab step 3
 
@@ -426,7 +438,7 @@
         framework: s.framework || '',
         userAnswer: s.transcript || s.text || '',
         followupText: s.followupText || '',
-        score: fb ? fb.score : null,
+        score: fb ? fb.score * 10 : null,
         landed: fb ? fb.landed : '',
         fix: fb ? fb.fix : '',
         betterLine: fb ? fb.betterLine : '',
@@ -442,7 +454,7 @@
     });
 
     var avgScore = scores.length > 0
-      ? Math.round((scores.reduce(function(a, b) { return a + b; }, 0) / scores.length) * 10) / 10
+      ? Math.round(scores.reduce(function(a, b) { return a + b; }, 0) / scores.length * 10)
       : null;
 
     // Cross-day habit & breakthrough tracking
@@ -536,6 +548,7 @@
   exports.validateCoachResponse = validateCoachResponse;
   exports.computeTopWeakSpots = computeTopWeakSpots;
   exports.selectByWeakSpot = selectByWeakSpot;
+  exports.selectByWeakSpotNoRepeat = selectByWeakSpotNoRepeat;
   exports.detectWordChips = detectWordChips;
   exports.isReviewDayNum = isReviewDayNum;
   exports.collectSeen = collectSeen;

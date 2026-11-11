@@ -11,6 +11,7 @@ RECALL transforms an existing multi-tab PM practice tool into a guided daily jou
 - [x] **Phase 3: AI Coach + Weak Spots** - Live NIM feedback on every step with rubric-anchored scoring, weak-spot tagging, and adaptive question selection (completed 2026-11-10)
 - [x] **Phase 4: Endless Mode** - AI-generated fresh daily content after day 30, using the user's weak-spot history and resume (completed 2026-11-10)
 - [x] **Phase 5: Daily Performance Report** - Visual performance report after task completion highlighting strengths, mistakes, fixes, and rectified retries (completed 2026-11-10)
+- [x] **Phase 6: Question Variety & 1-100 Scoring** - Non-repeating question rotation across consecutive days and 1-100 performance score scale (completed 2026-11-11)
 
 ## Phase Details
 

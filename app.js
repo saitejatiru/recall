@@ -589,7 +589,7 @@ function renderFeedbackSlot(stepId) {
   if (af && af.score) {
     html += '<div id="aiFeedback" style="margin-top:12px">';
     html += '<div class="row" style="margin-bottom:8px">';
-    html += '<span class="tag" style="background:var(--accent);color:#101827;border-color:var(--accent)">' + esc(String(af.score)) + '/10</span>';
+    html += '<span class="tag" style="background:var(--accent);color:#101827;border-color:var(--accent)">' + esc(String(af.score * 10)) + '/100</span>';
     html += '</div>';
     if (af.fix) html += '<p><strong>One fix:</strong> ' + esc(af.fix) + '</p>';
     if (af.betterLine) html += '<div style="border-left:4px solid var(--accent);background:var(--panel2);padding:12px 16px;border-radius:0 8px 8px 0;margin:8px 0">' + esc(af.betterLine) + '</div>';
@@ -638,9 +638,9 @@ function renderDailyReport(dayData, dayNum, prevDaysData) {
   html += '<div><h2 style="margin:0;font-size:20px">&#128202; Day ' + esc(String(dayNum)) + ' Performance Report</h2>';
   html += '<span class="small muted">Detailed breakdown of answers, feedback, strengths, habits &amp; rectifications</span></div>';
   if (rpt.averageScore !== null) {
-    var scoreColor = rpt.averageScore >= 7 ? 'var(--green)' : (rpt.averageScore >= 5 ? 'var(--accent)' : 'var(--muted)');
+    var scoreColor = rpt.averageScore >= 70 ? 'var(--green)' : (rpt.averageScore >= 50 ? 'var(--accent)' : 'var(--muted)');
     html += '<div style="text-align:right">';
-    html += '<div style="font-size:26px;font-weight:850;color:' + scoreColor + '">' + esc(String(rpt.averageScore)) + '<span style="font-size:16px;color:var(--muted)"> / 10</span></div>';
+    html += '<div style="font-size:26px;font-weight:850;color:' + scoreColor + '">' + esc(String(rpt.averageScore)) + '<span style="font-size:16px;color:var(--muted)"> / 100</span></div>';
     html += '<span class="small muted">Average AI Score</span>';
     html += '</div>';
   }
@@ -716,7 +716,7 @@ function renderDailyReport(dayData, dayNum, prevDaysData) {
       html += '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px">';
       html += '<div><strong>' + esc(stepTitle) + '</strong> <span class="tag" style="margin-left:6px">' + esc(sa.framework) + '</span></div>';
       if (sa.score !== null) {
-        html += '<span class="tag" style="background:var(--accent);color:#101827;font-weight:700">' + esc(String(sa.score)) + '/10</span>';
+        html += '<span class="tag" style="background:var(--accent);color:#101827;font-weight:700">' + esc(String(sa.score)) + '/100</span>';
       }
       html += '</div>';
       if (sa.question) {
@@ -918,13 +918,35 @@ function learnedWordIds() {
 var BUILTIN = { VOCAB: VOCAB, QUESTIONS: QUESTIONS, CASES: CASES, INTERVIEW: INTERVIEW, LESSONS: LESSONS };
 function dayPack() { return day() > 30 ? (data.endless || {})[day()] || null : null; }
 function dayWords() { var p = dayPack(); return p ? p.words : (VOCAB[Math.min(day() - 1, VOCAB.length - 1)] || []); }
-function dayQuestion() { var p = dayPack(); return p ? p.question : QUESTIONS[(day() - 1) % QUESTIONS.length]; }
+function dayQuestion() {
+  var p = dayPack(); if (p) return p.question;
+  var vd = data[activeDateKey()];
+  if (!vd || vd.questionIdx === undefined) {
+    var lastQIdx = -1;
+    for (var k in data) {
+      if (k.indexOf('d-') === 0 && data[k] && data[k].dayNumber === day() - 1 && data[k].questionIdx !== undefined) {
+        lastQIdx = data[k].questionIdx; break;
+      }
+    }
+    var i = QUESTIONS.indexOf(LOGIC.selectByWeakSpotNoRepeat(QUESTIONS, LOGIC.computeTopWeakSpots(data, todayStr), lastQIdx));
+    if (i < 0) i = (day() - 1) % QUESTIONS.length;
+    if (!vd) return QUESTIONS[i];
+    vd.questionIdx = i; save();
+  }
+  return QUESTIONS[vd.questionIdx];
+}
 function dayLesson() { var p = dayPack(); return p ? p.lesson : LESSONS[Math.min(day() - 1, LESSONS.length - 1)]; }
 function dayCase() {
   var p = dayPack(); if (p) return p.case;
   var vd = data[activeDateKey()];
   if (!vd || vd.caseIdx === undefined) {
-    var i = CASES.indexOf(LOGIC.selectByWeakSpot(CASES, LOGIC.computeTopWeakSpots(data, todayStr)));
+    var lastCaseIdx = -1;
+    for (var k in data) {
+      if (k.indexOf('d-') === 0 && data[k] && data[k].dayNumber === day() - 1 && data[k].caseIdx !== undefined) {
+        lastCaseIdx = data[k].caseIdx; break;
+      }
+    }
+    var i = CASES.indexOf(LOGIC.selectByWeakSpotNoRepeat(CASES, LOGIC.computeTopWeakSpots(data, todayStr), lastCaseIdx));
     if (i < 0) i = (day() - 1) % CASES.length;
     if (!vd) return CASES[i];
     vd.caseIdx = i; save();
@@ -935,7 +957,13 @@ function dayInterview() {
   var p = dayPack(); if (p) return p.interview;
   var vd = data[activeDateKey()];
   if (!vd || vd.interviewIdx === undefined) {
-    var i = INTERVIEW.indexOf(LOGIC.selectByWeakSpot(INTERVIEW, LOGIC.computeTopWeakSpots(data, todayStr)));
+    var lastIntIdx = -1;
+    for (var k in data) {
+      if (k.indexOf('d-') === 0 && data[k] && data[k].dayNumber === day() - 1 && data[k].interviewIdx !== undefined) {
+        lastIntIdx = data[k].interviewIdx; break;
+      }
+    }
+    var i = INTERVIEW.indexOf(LOGIC.selectByWeakSpotNoRepeat(INTERVIEW, LOGIC.computeTopWeakSpots(data, todayStr), lastIntIdx));
     if (i < 0) i = (day() - 1) % INTERVIEW.length;
     if (!vd) return INTERVIEW[i];
     vd.interviewIdx = i; save();
@@ -1017,7 +1045,7 @@ function renderCoachFeedback(stepId, res) {
   save();
   var html = '<div style="margin-top:12px">';
   html += '<div class="row" style="margin-bottom:8px">';
-  html += '<span class="tag" style="background:var(--accent);color:#101827;border-color:var(--accent)">' + esc(String(res.score)) + '/10</span>';
+  html += '<span class="tag" style="background:var(--accent);color:#101827;border-color:var(--accent)">' + esc(String(res.score * 10)) + '/100</span>';
   if (res.landed) html += '<span class="small muted">&nbsp;' + esc(res.landed) + '</span>';
   html += '</div>';
   html += '<p><strong>One fix:</strong> ' + esc(res.fix) + '</p>';
@@ -1465,7 +1493,7 @@ document.addEventListener('click', function(e) {
     var r = LOGIC.computeDayReport(curDayData, prevD);
     if (!r) return;
     var summary = 'RECALL Day ' + day() + ' Performance Report\n' +
-      'Score: ' + (r.averageScore !== null ? r.averageScore + '/10' : 'N/A') + '\n' +
+      'Score: ' + (r.averageScore !== null ? r.averageScore + '/100' : 'N/A') + '\n' +
       'Fillers: ' + r.totalFillers + '\n' +
       'Same-Day Rectified: ' + r.rectifiedCount + '/' + r.retriedCount + '\n';
     if (r.breakthroughs && r.breakthroughs.length > 0) {

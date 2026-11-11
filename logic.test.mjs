@@ -421,7 +421,7 @@ var sampleDay = {
 
 var rpt = L.computeDayReport(sampleDay);
 assert.ok(rpt, 'report generated');
-assert.equal(rpt.averageScore, 7.5, 'average score computed correctly (7+8)/2 = 7.5');
+assert.equal(rpt.averageScore, 75, 'average score computed correctly (7+8)/2 = 7.5 * 10 = 75');
 assert.equal(rpt.totalFillers, 3, 'total fillers summed (2+1 = 3)');
 assert.equal(rpt.retriedCount, 1, 'retried count = 1');
 assert.equal(rpt.rectifiedCount, 1, 'rectified count = 1');
@@ -447,5 +447,35 @@ assert.deepEqual(rptWithHistory.repeatedHabits[0].priorDays, [2], 'repeated from
 assert.equal(rptWithHistory.breakthroughs.length, 1, '1 breakthrough detected');
 assert.equal(rptWithHistory.breakthroughs[0].tag, 'no-metric', 'no-metric is breakthrough');
 assert.deepEqual(rptWithHistory.breakthroughs[0].priorDays, [1, 2], 'conquered after days 1 & 2');
+
+// ── selectByWeakSpotNoRepeat ──────────────────────────────────────────────
+(function() {
+  var items = [
+    { targetsTags: ['no-metric'] },
+    { targetsTags: ['rambling'] },
+    { targetsTags: ['generic'] },
+    { targetsTags: [] }
+  ];
+  assert(LOGIC.selectByWeakSpotNoRepeat(items, ['no-metric'], 0) !== items[0], 'should skip lastIdx');
+  assert(LOGIC.selectByWeakSpotNoRepeat(items, ['rambling'], 0) === items[1], 'picks weak-spot match skipping lastIdx');
+  assert(LOGIC.selectByWeakSpotNoRepeat(items, [], 0) === items[1], 'no tags → first non-last');
+  assert(LOGIC.selectByWeakSpotNoRepeat(items, [], 1) === items[2], 'no tags → cycles to next index (2)');
+  assert(LOGIC.selectByWeakSpotNoRepeat(items, [], 3) === items[0], 'no tags → wraps to 0');
+  assert(LOGIC.selectByWeakSpotNoRepeat(items, ['no-metric'], -1) === items[0], 'lastIdx -1 → normal pick');
+  console.log('  selectByWeakSpotNoRepeat: ok');
+})();
+
+// ── computeDayReport score scale (1-100) ──────────────────────────────────
+(function() {
+  var dayData = {
+    speak: { aiFeedback: { score: 7, tags: [], landed: 'good', fix: 'fix it', betterLine: 'better' } },
+    case: { aiFeedback: { score: 8, tags: [], landed: 'good', fix: 'fix it', betterLine: 'better' } },
+    interview: { aiFeedback: { score: 6, tags: [], landed: 'good', fix: 'fix it', betterLine: 'better' } }
+  };
+  var rpt = LOGIC.computeDayReport(dayData, []);
+  assert.equal(rpt.averageScore, 70, 'averageScore should be 70 (7+8+6 avg=7 *10)');
+  assert.equal(rpt.stepAnalyses[0].score, 70, 'step score should be *10');
+  console.log('  computeDayReport 1-100 scale: ok');
+})();
 
 console.log('logic self-check: all passed');
